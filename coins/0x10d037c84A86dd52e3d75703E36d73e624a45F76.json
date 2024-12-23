@@ -1,0 +1,18 @@
+{
+    "name": "Valuentainment",
+    "symbol": "VLT",
+    "totalSupply": 1000000000,
+    "imageURI": "https://ipfs.io/ipfs/QmNX2Lydfw4Ty2eHSeZVmQwHinUWeyesVRdKhhR4Uuz6kd",
+    "metadataURI": "https://gateway.pinata.cloud/ipfs/QmcSQqcCD69ndM6emosbypgV7W62UB5J7f4FMXPMvvm6ob",
+    "contractAddress": "0x10d037c84A86dd52e3d75703E36d73e624a45F76",
+    "transactionHash": "0x2eb8167f09fd0da3bfdb6749a0b7de5ddcd0b7f8fcae3c7ea0c0401d057911b6",
+    "bondingCurve": "0xD02B00d3D6e345263cb66F6daA6606Ad0EaaC66F",
+    "creator": "0x281A323d75868f09f0DF5288F5530Fc739298Bb4",
+    "createdTimestamp": "2024-12-23T23:24:44.181Z",
+    "completion": true,
+    "marketCap": 5000,
+    "ambMarketCap": 640204.8655569783,
+    "twitter": "null",
+    "telegram": "null",
+    "website": "null"
+}

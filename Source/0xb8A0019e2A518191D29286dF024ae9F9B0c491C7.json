@@ -1,0 +1,7 @@
+{
+    "contractAddress": "0xb8A0019e2A518191D29286dF024ae9F9B0c491C7",
+    "bondingCurve": "0x7617e6b7d205b90140f17C4AC6c11c83E73550b9",
+    "bondingCurvePrivateKey": "0xfc42ea2da25d64b96c51e84038540e866d12da5de767d4ef06df00e2df7e11e2",
+    "associatedBondingCurve": "0xEDFAd43c4bb21C29E9c20E0A5bd2EAb72f754852",
+    "associatedBondingCurvePrivateKey": "0x74f6d21dfcdbc7193f579c7b8da5e4c2ce5372b5a2548f624d50f453a4dee72f"
+}

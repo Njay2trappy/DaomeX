@@ -1,0 +1,19 @@
+{
+    "name": "verd",
+    "symbol": "vty",
+    "totalSupply": 1000000000,
+    "imageURI": "https://ipfs.io/ipfs/QmNX2Lydfw4Ty2eHSeZVmQwHinUWeyesVRdKhhR4Uuz6kd",
+    "metadataURI": "https://gateway.pinata.cloud/ipfs/QmctKxPEgPfb1FV33WmusU2rYbZ1DJqXD18LrF8yKgUYe7",
+    "contractAddress": "0x46bB891E86F61d156b4b7d4f48B07f3E48846D26",
+    "transactionHash": "0x1228717cbf29e91bed44e42930c4fe43d277b3360e1c4d149f0155791d3c6304",
+    "bondingCurve": "0xaa5e8EaaD07b68316aC785769ecBD9F837A8e78d",
+    "associatedBondingCurve": "0xaa5e8EaaD07b68316aC785769ecBD9F837A8e78d",
+    "creator": "0x281A323d75868f09f0DF5288F5530Fc739298Bb4",
+    "createdTimestamp": "2024-12-23T23:15:06.530Z",
+    "completion": true,
+    "marketCap": 5000,
+    "ambMarketCap": 639386.189258312,
+    "twitter": "null",
+    "telegram": "null",
+    "website": "null"
+}
