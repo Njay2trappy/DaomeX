@@ -1,0 +1,12 @@
+{
+    "name": "Your Token Name",
+    "symbol": "YTN",
+    "description": "A legendary token created with Daome Meme Bot.",
+    "image": "https://gray-rare-salamander-705.mypinata.cloud/ipfs/QmNfNeSnC3VSH6TKQx6WPFLbcHhyyUQqcnrmjQc5vDYHUz",
+    "attributes": [
+      { "trait_type": "Creator", "value": "Daome Meme Bot" },
+      { "trait_type": "Network", "value": "AirDAO" },
+      { "trait_type": "Total Supply", "value": "1000000000" }
+    ]
+  }
+  

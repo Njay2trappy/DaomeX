@@ -1,0 +1,19 @@
+{
+    "totalSupply": "1000000000",
+    "name": "The Open Network",
+    "symbol": "TON",
+    "imageURI": "https://ipfs.io/ipfs/QmNX2Lydfw4Ty2eHSeZVmQwHinUWeyesVRdKhhR4Uuz6kd",
+    "metadataURI": "https://gateway.pinata.cloud/ipfs/QmdNiTsDW69AqAX7y8wMtRuojKK3L45bU61LRkNkuKcvCs",
+    "contractAddress": "0x30d9facb24316596FC42b6b6c69D60Ef1953Df1a",
+    "transactionHash": "0x313e3aa7aab181478ee8ae7e8ad383b19c4ebd9054b5b7527818e5fc77f6b1ed",
+    "bondingCurve": "0x062a254D1489639760Bd1e963671E00D048c04Dd",
+    "associatedBondingCurve": "0xc9a05dC773c924c2EBb68De4e42a67463Ea4Ec00",
+    "creator": "0x281A323d75868f09f0DF5288F5530Fc739298Bb4",
+    "createdTimestamp": "2024-12-21T19:03:11.069Z",
+    "completion": false,
+    "marketCap": 5000,
+    "ambMarketCap": 680272.1088435374,
+    "twitter": "https://x.com/isabelleboemeke/status/1870515874496749596",
+    "telegram": "https://x.com/isabelleboemeke/status/1870515874496749596",
+    "website": "https://x.com/isabelleboemeke/status/1870515874496749596"
+}

@@ -1,0 +1,19 @@
+{
+    "name": "DAOME",
+    "symbol": "DOT",
+    "totalSupply": "10000",
+    "imageURI": "https://ipfs.io/ipfs/QmNX2Lydfw4Ty2eHSeZVmQwHinUWeyesVRdKhhR4Uuz6kd",
+    "metadataURI": "https://gateway.pinata.cloud/ipfs/QmScjraRXZdSSBCFSXe2T3aSk6wW2b5pd87fN8aXvnMy5u",
+    "contractAddress": "0x9b21775D7cBCC78fE7CE55FD6d32970E946897ea",
+    "transactionHash": "0x527df77a24987d94fe8857241d4edcdc94bd32774136b8fe5b274a34d65760da",
+    "bondingCurve": "0x26a968e0455ca775265B75B7C39c0253007EAA41",
+    "associatedBondingCurve": "0xA4ef67DBf6337A29DB526098ECA3CeFE0641A5A6",
+    "creator": "0x281A323d75868f09f0DF5288F5530Fc739298Bb4",
+    "createdTimestamp": "2024-12-21T19:19:00.095Z",
+    "completion": false,
+    "marketCap": 5000,
+    "ambMarketCap": 683060.1092896175,
+    "twitter": "https://x.com/isabelleboemeke/status/1870515874496749596",
+    "telegram": "https://x.com/isabelleboemeke/status/1870515874496749596",
+    "website": "https://x.com/isabelleboemeke/status/1870515874496749596"
+}

@@ -1,0 +1,19 @@
+{
+    "name": "tasks",
+    "symbol": "tkt",
+    "totalSupply": "1000",
+    "imageURI": "https://ipfs.io/ipfs/QmNX2Lydfw4Ty2eHSeZVmQwHinUWeyesVRdKhhR4Uuz6kd",
+    "metadataURI": "https://gateway.pinata.cloud/ipfs/QmW1U7qJgctyB7g4HpRPmv3Ka5amGKcv5UJEsFqHwdCrRQ",
+    "contractAddress": "0x4d5012814a3dFa4Fea1419635530a7ccE27A2189",
+    "transactionHash": "0x89507a13e0a717d66e023616f02d50db2db8675a3dfd550a2658b7f7176c1cb3",
+    "bondingCurve": "0x2a89D8d3B1174c03ab5fFf8516f850e17469F42D",
+    "associatedBondingCurve": "0x5f7b20b1811dfaF21A044a56a123Aa4602515E37",
+    "creator": "0x281A323d75868f09f0DF5288F5530Fc739298Bb4",
+    "createdTimestamp": "2024-12-21T17:41:30.759Z",
+    "completion": false,
+    "marketCap": 5000,
+    "ambMarketCap": 674763.8326585696,
+    "twitter": null,
+    "telegram": null,
+    "website": null
+}
