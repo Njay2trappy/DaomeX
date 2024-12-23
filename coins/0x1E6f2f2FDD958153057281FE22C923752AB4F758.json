@@ -1,0 +1,19 @@
+{
+    "name": "Crazy Dotters",
+    "symbol": "CDT",
+    "totalSupply": 1000000000,
+    "imageURI": "https://ipfs.io/ipfs/QmNX2Lydfw4Ty2eHSeZVmQwHinUWeyesVRdKhhR4Uuz6kd",
+    "metadataURI": "https://gateway.pinata.cloud/ipfs/QmaMhM8L8ms7RoZv89F1QD9BQpV9manVCP1FAFCGAZuYEh",
+    "contractAddress": "0x1E6f2f2FDD958153057281FE22C923752AB4F758",
+    "transactionHash": "0x3f77db593bbc11fe801cebf7e7af2af354adc5f31044cc87d157b6957e99e853",
+    "bondingCurve": "0x5fd762B4e62042B558eFAd51925f6aAC9e121bDb",
+    "associatedBondingCurve": "0x5f67B21B8Df2964AD3AD9C9Cdd2800410e1F015A",
+    "creator": "0x281A323d75868f09f0DF5288F5530Fc739298Bb4",
+    "createdTimestamp": "2024-12-23T21:42:48.712Z",
+    "completion": false,
+    "marketCap": 5000,
+    "ambMarketCap": 633713.5614702156,
+    "twitter": "https://x.com/isabelleboemeke/status/1870515874496749596",
+    "telegram": "https://x.com/isabelleboemeke/status/1870515874496749596",
+    "website": "https://x.com/isabelleboemeke/status/1870515874496749596"
+}

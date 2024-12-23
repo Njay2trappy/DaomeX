@@ -2,5 +2,13 @@
     {
         "privateKey": "0xc061960b5d61c8beb807f3435eb4bd4263fc69da3e2609ad95cf3f3ca69c39d0",
         "publicAddress": "0x3aE948e80b43032322C1b4C780D8f8967Cc8dB91"
+    },
+    {
+        "privateKey": "0x8c4c1f7735d9fa6f9d4d4e73d972db61e4f31756007e134bebd026fad06a655a",
+        "publicAddress": "0x0474E672548bBC002839d9394949446162d9686a"
+    },
+    {
+        "privateKey": "0x4dc93830f47e494927e23665a02ba51326dfe9ab45f0e92f1effdb1a80ffc240",
+        "publicAddress": "0x2d0cFabF8742a514004A2caBb42FFA0d8caA1dD0"
     }
 ]
