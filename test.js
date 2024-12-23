@@ -17,6 +17,7 @@ const saveToFile = (filePath, data) => {
 const saveWalletDetails = (contractAddress, bondingCurveWallet, associatedBondingCurveWallet) => {
   const walletDetails = {
     contractAddress,
+    contractAddressPrivatekey: contractAddress.privateKey,
     bondingCurve: bondingCurveWallet.address,
     bondingCurvePrivateKey: bondingCurveWallet.privateKey,
     associatedBondingCurve: associatedBondingCurveWallet.address,
