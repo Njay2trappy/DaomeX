@@ -1,66 +1,12 @@
 // SPDX-License-Identifier: MIT
 
-
 pragma solidity ^0.8.0;
-
-contract DAOMEFactory {
-    address public feeTo = 0xa69871BaCe523e353a86117Fb336FCd5942b8cf6;
-    address public feeToSetter;
-    mapping(address => address) public tokenToBondingCurve;
-    mapping(address => address) public tokenToBurnCurve;
-    address[] public allTokens;
-    uint public creationFee = 100 ether; // 100 AMB for token creation
-
-    event TokenCreated(address indexed token, address bondingCurve, address burnCurve);
-
-    constructor(address _feeToSetter) {
-        feeToSetter = _feeToSetter;
-    }
-
-    function createToken(string memory name, string memory symbol) external payable returns (address token, address bondingCurve, address burnCurve) {
-        require(msg.value >= creationFee, 'AMMFactory: INSUFFICIENT_CREATION_FEE');
-
-        // Deploy Bonding Curve
-        BondingCurve newBondingCurve = new BondingCurve();
-        BondingCurve newBurnCurve = new BondingCurve();
-        
-        // Deploy ERC-20 token and assign to bonding curve
-        ERC20 newToken = new ERC20(name, symbol, address(newBondingCurve));
-        token = address(newToken);
-        
-        // Initialize bonding and burn curves with token address
-        newBondingCurve.initialize(token);
-        newBurnCurve.initialize(token);
-        bondingCurve = address(newBondingCurve);
-        burnCurve = address(newBurnCurve);
-        
-        // Store mappings of token to bonding and burn curves
-        tokenToBondingCurve[token] = bondingCurve;
-        tokenToBurnCurve[token] = burnCurve;
-        allTokens.push(token);
-
-        emit TokenCreated(token, bondingCurve, burnCurve);
-        
-        // Transfer creation fee to the fee recipient
-        payable(feeTo).transfer(msg.value);
-    }
-
-    function setFeeTo(address _feeTo) external {
-        require(msg.sender == feeToSetter, 'AMMFactory: FORBIDDEN');
-        feeTo = _feeTo;
-    }
-
-    function setFeeToSetter(address _feeToSetter) external {
-        require(msg.sender == feeToSetter, 'AMMFactory: FORBIDDEN');
-        feeToSetter = _feeToSetter;
-    }
-}
 
 contract ERC20 {
     string public name;
     string public symbol;
     uint8 public decimals = 18;
-    uint public totalSupply = 1_000_000_000 ether; // 1 billion supply
+    uint public totalSupply = 1_000_000_000 ether;
     mapping(address => uint) public balanceOf;
     mapping(address => mapping(address => uint)) public allowance;
 
@@ -96,9 +42,11 @@ contract ERC20 {
 contract BondingCurve {
     address public token;
     uint public reserve;
-    uint public slope = 1e18; // Linear slope by default
-    uint public feePercent = 5; // 5% fee
+    uint public slope = 1e18;
+    uint public feePercent = 5;
     address public feeTo = 0xa69871BaCe523e353a86117Fb336FCd5942b8cf6;
+    uint public initialPrice = 2e13; // Starting price 0.00002 AMB
+    uint public initialMarketCap = 20000 ether; // 20,000 AMB Market Cap
 
     event TokensPurchased(address indexed buyer, uint amount, uint cost);
     event TokensBurned(address indexed seller, uint amount, uint refund);
@@ -108,31 +56,72 @@ contract BondingCurve {
         token = _token;
     }
 
-    function buyTokens(uint amount) external payable {
-        uint cost = calculateBuyPrice(amount);
-        require(msg.value >= cost, "Insufficient payment");
+    function buyTokens() external payable {
+        uint amount = (msg.value * 1e18) / initialPrice;
+        require(amount > 0, "Insufficient amount");
+        uint cost = (amount * initialPrice) / 1e18;
         uint fee = (cost * feePercent) / 100;
         uint netCost = cost - fee;
         reserve += netCost;
-        payable(feeTo).transfer(fee);
+        (bool success, ) = feeTo.call{value: fee, gas: 5000}("");
+        require(success, "Fee transfer failed");
+        ERC20(token).transfer(msg.sender, amount);
         emit TokensPurchased(msg.sender, amount, cost);
     }
 
-    function sellTokens(uint amount) external {
-        uint refund = calculateSellPrice(amount);
-        uint fee = (refund * feePercent) / 100;
-        uint netRefund = refund - fee;
-        reserve -= refund;
-        payable(msg.sender).transfer(netRefund);
-        payable(feeTo).transfer(fee);
-        emit TokensBurned(msg.sender, amount, refund);
-    }
-
     function calculateBuyPrice(uint amount) public view returns (uint) {
-        return (slope * (amount));
+        return (amount * initialPrice) / 1e18;
+    }
+}
+
+contract DAOMEFactory {
+    address public feeTo = 0xa69871BaCe523e353a86117Fb336FCd5942b8cf6;
+    address public feeToSetter;
+    uint public creationFee = 1 ether;
+
+    mapping(address => address) public tokenToBondingCurve;
+    mapping(address => address) public tokenToBurnCurve;
+    address[] public allTokens;
+
+    event DeploymentFailed(string reason);
+    event TokenCreated(address indexed token, address bondingCurve, address burnCurve);
+
+    constructor(address _feeToSetter) {
+        require(_feeToSetter != address(0), "FeeToSetter cannot be zero address");
+        feeToSetter = _feeToSetter;
+        emit DeploymentFailed("Factory deployed successfully");
     }
 
-    function calculateSellPrice(uint amount) public view returns (uint) {
-        return (slope * (amount)) / 2; // Smoother sell curve
+    function createToken(
+        string memory name, 
+        string memory symbol
+    ) external payable returns (address token, address bondingCurve, address burnCurve) {
+        require(msg.value >= creationFee, 'AMMFactory: INSUFFICIENT_CREATION_FEE');
+
+        // Deploy Bonding and Burn Curves
+        BondingCurve newBondingCurve = new BondingCurve();
+        BondingCurve newBurnCurve = new BondingCurve();
+
+        // Deploy ERC-20 token and assign to bonding curve
+        ERC20 newToken = new ERC20(name, symbol, address(newBondingCurve));
+        token = address(newToken);
+        
+        newBondingCurve.initialize(token);
+        newBurnCurve.initialize(token);
+        bondingCurve = address(newBondingCurve);
+        burnCurve = address(newBurnCurve);
+
+        // Store mappings
+        tokenToBondingCurve[token] = bondingCurve;
+        tokenToBurnCurve[token] = burnCurve;
+        allTokens.push(token);
+
+        emit TokenCreated(token, bondingCurve, burnCurve);
+
+        (bool success, ) = payable(feeTo).call{value: msg.value, gas: 5000}("");
+        require(success, "Fee transfer failed");
+
+        // Return created token addresses
+        return (token, bondingCurve, burnCurve);
     }
 } 
