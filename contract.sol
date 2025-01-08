@@ -115,21 +115,18 @@ contract BondingCurve {
 
         uint userBalance = ERC20(token).balanceOf(msg.sender);
         require(userBalance > 0, "No tokens to sell");
-        require(amount <= userBalance, "Insufficient funds");
 
-        // Calculate price with 2% penalty (sell at 98% of the current price)
         uint sellPrice = (tokenPrice * 98) / 100;  // 2% penalty applied
         uint refund = (amount * sellPrice) / 1e18;
         uint fee = (refund * feePercent) / 100;
         uint netRefund = refund - fee;
 
+        // Ensure refund doesn't exceed the virtual reserve
         require(virtualReserve >= refund, "Insufficient virtual reserve");
 
         // Calculate post-sale state
         uint expectedTokenReserve = tokenReserve + amount;
-        uint expectedVirtualReserve = virtualReserve - netRefund;  // Use netRefund, not refund
-
-        // Calculate expected bonding curve price (without penalty)
+        uint expectedVirtualReserve = virtualReserve - refund;  // Subtract full refund (not netRefund)
         uint expectedPrice = (expectedVirtualReserve * 1e18) / expectedTokenReserve;
 
         // Transfer tokens from user to bonding curve reserve
@@ -150,6 +147,7 @@ contract BondingCurve {
         tokenReserve = expectedTokenReserve;
         tokenPrice = expectedPrice;
     }
+
 
 }
 
