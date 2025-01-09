@@ -141,8 +141,220 @@ const factoryABI = [
 		"type": "function"
 	}
 ];
-const bondingCurveABI = [/* Bonding Curve ABI from Remix */];
-const factoryAddress = '0xYourFactoryAddress';
+const bondingCurveABI = [
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "seller",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "refund",
+				"type": "uint256"
+			}
+		],
+		"name": "TokensBurned",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "buyer",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "cost",
+				"type": "uint256"
+			}
+		],
+		"name": "TokensPurchased",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "slippageTolerancePercent",
+				"type": "uint256"
+			}
+		],
+		"name": "buyTokens",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "feePercent",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "feeTo",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getMarketCap",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "initialPrice",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_token",
+				"type": "address"
+			}
+		],
+		"name": "initialize",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "slippagePercent",
+				"type": "uint256"
+			}
+		],
+		"name": "sellTokens",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "slope",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "token",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "tokenPrice",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "tokenReserve",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "virtualReserve",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+];
+const factoryAddress = '0xb6C40ec58D006A0A7560B71bd3DFD475f2e13445';
 const factoryContract = new web3.eth.Contract(factoryABI, factoryAddress);
 
 const typeDefs = gql`
@@ -161,6 +373,32 @@ const typeDefs = gql`
     telegram: String
     website: String
     metadataURI: String
+    tokenPrice: Float
+    virtualReserve: Float
+    tokenReserve: Float
+    slope: Float
+    feePercent: Int
+    marketCap: Float
+  }
+
+  type PurchaseDetails {
+    token: String
+    tokenAddress: ID!
+    quantity: Float
+    amountPaid: Float
+    timestamp: String
+    buyer: ID!
+    transactionHash: ID!
+  }
+
+  type SellDetails {
+    token: String
+    tokenAddress: ID!
+    quantitySold: Float
+    amountReceived: Float
+    timestamp: String
+    seller: ID!
+    transactionHash: ID!
   }
 
   type BondingCurveDetails {
@@ -169,6 +407,7 @@ const typeDefs = gql`
     tokenReserve: Float
     slope: Float
     feePercent: Int
+    marketCap: Float
     token: ID!
   }
 
@@ -188,8 +427,8 @@ const typeDefs = gql`
       telegram: String,
       website: String
     ): Token
-    buyTokens(bondingCurveAddress: ID!, slippageTolerance: Int!, privateKey: String!): String
-    sellTokens(bondingCurveAddress: ID!, amount: Float!, slippageTolerance: Int!, privateKey: String!): String
+    buyTokens(bondingCurveAddress: ID!, amount: Float!, slippageTolerance: Int!, privateKey: String!): PurchaseDetails
+    sellTokens(bondingCurveAddress: ID!, amount: Float!, slippageTolerance: Int!, privateKey: String!): SellDetails
   }
 `;
 
@@ -204,6 +443,7 @@ const resolvers = {
       const tokenReserve = await bondingCurveContract.methods.tokenReserve().call();
       const slope = await bondingCurveContract.methods.slope().call();
       const feePercent = await bondingCurveContract.methods.feePercent().call();
+      const marketCap = await bondingCurveContract.methods.getMarketCap().call();
       const token = await bondingCurveContract.methods.token().call();
 
       return {
@@ -212,6 +452,7 @@ const resolvers = {
         tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
         slope: parseFloat(web3.utils.fromWei(slope, 'ether')),
         feePercent: parseInt(feePercent),
+        marketCap: parseFloat(web3.utils.fromWei(marketCap, 'ether')),
         token
       };
     }
@@ -235,6 +476,14 @@ const resolvers = {
       const transactionHash = receipt.transactionHash;
       const creator = account.address;
       const totalSupply = 1_000_000_000;
+
+      const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurveAddress);
+      const tokenPrice = await bondingCurveContract.methods.tokenPrice().call();
+      const virtualReserve = await bondingCurveContract.methods.virtualReserve().call();
+      const tokenReserve = await bondingCurveContract.methods.tokenReserve().call();
+      const slope = await bondingCurveContract.methods.slope().call();
+      const feePercent = await bondingCurveContract.methods.feePercent().call();
+      const marketCap = await bondingCurveContract.methods.getMarketCap().call();
 
       // Prepare metadata
       const tokenMetadata = {
@@ -280,26 +529,107 @@ const resolvers = {
         twitter,
         telegram,
         website,
-        metadataURI
+        metadataURI,
+        tokenPrice: parseFloat(web3.utils.fromWei(tokenPrice, 'ether')),
+        virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve, 'ether')),
+        tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
+        slope: parseFloat(web3.utils.fromWei(slope, 'ether')),
+        feePercent: parseInt(feePercent),
+        marketCap: parseFloat(web3.utils.fromWei(marketCap, 'ether'))
       };
     },
-    buyTokens: async (_, { bondingCurveAddress, slippageTolerance, privateKey }) => {
+    buyTokens: async (_, { bondingCurveAddress, amount, slippageTolerance, privateKey }) => {
       const account = web3.eth.accounts.privateKeyToAccount(privateKey);
       web3.eth.accounts.wallet.add(account);
+
       const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurveAddress);
 
-      const tx = bondingCurveContract.methods.buyTokens(slippageTolerance);
-      const gas = await tx.estimateGas({ from: account.address, value: web3.utils.toWei('1', 'ether') });
+      try {
+        console.log(`Buying tokens from bonding curve: ${bondingCurveAddress}`);
+        console.log(`Amount: ${amount}, Slippage Tolerance: ${slippageTolerance}`);
 
-      await tx.send({
-        from: account.address,
-        gas,
-        value: web3.utils.toWei('1', 'ether')
-      });
+        const tx = bondingCurveContract.methods.buyTokens(slippageTolerance);
+        const gas = await tx.estimateGas({
+          from: account.address,
+          value: web3.utils.toWei(amount.toString(), 'ether'),
+        });
+        console.log(`Estimated gas: ${gas}`);
 
-      return 'Tokens Purchased';
-    }
-  }
+        const receipt = await tx.send({
+          from: account.address,
+          gas,
+          value: web3.utils.toWei(amount.toString(), 'ether'),
+        });
+
+        const timestamp = new Date().toISOString();
+        const buyer = account.address;
+        const transactionHash = receipt.transactionHash;
+        const tokenAddress = await bondingCurveContract.methods.token().call();
+
+        // Fetching token quantity from receipt
+        const event = receipt.events.TokensPurchased;
+        const quantity = parseFloat(web3.utils.fromWei(event.returnValues.amount, 'ether'));
+
+        return {
+          token: "Token Name", // Replace with actual token name if needed
+          tokenAddress,
+          quantity,
+          amountPaid: parseFloat(amount),
+          timestamp,
+          buyer,
+          transactionHash
+        };
+      } catch (error) {
+        console.error('Error during token purchase:', error);
+        throw new Error('Token purchase failed');
+      }
+    },
+    sellTokens: async (_, { bondingCurveAddress, amount, slippageTolerance, privateKey }) => {
+      const account = web3.eth.accounts.privateKeyToAccount(privateKey);
+      web3.eth.accounts.wallet.add(account);
+    
+      const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurveAddress);
+    
+      try {
+        console.log(`Selling tokens to bonding curve: ${bondingCurveAddress}`);
+        console.log(`Amount: ${amount}, Slippage Tolerance: ${slippageTolerance}`);
+    
+        const tx = bondingCurveContract.methods.sellTokens(
+          web3.utils.toWei(amount.toString(), 'ether'),
+          slippageTolerance
+        );
+    
+        const gas = await tx.estimateGas({ from: account.address });
+        console.log(`Estimated gas: ${gas}`);
+    
+        const receipt = await tx.send({ from: account.address, gas });
+        console.log('Transaction receipt:', receipt);
+    
+        const timestamp = new Date().toISOString();
+        const seller = account.address;
+        const transactionHash = receipt.transactionHash;
+        const tokenAddress = await bondingCurveContract.methods.token().call();
+    
+        // Fetching sale details from receipt
+        const event = receipt.events.TokensBurned;
+        const quantitySold = parseFloat(web3.utils.fromWei(event.returnValues.amount, 'ether'));
+        const amountReceived = parseFloat(web3.utils.fromWei(event.returnValues.refund, 'ether'));
+    
+        return {
+          token: "Token Name", // Replace with actual token name if needed
+          tokenAddress,
+          quantitySold,
+          amountReceived,
+          timestamp,
+          seller,
+          transactionHash,
+        };
+      } catch (error) {
+        console.error('Error during token sale:', error);
+        throw new Error('Token sale failed');
+      }
+    },    
+  },
 };
 
 const server = new ApolloServer({ typeDefs, resolvers });
