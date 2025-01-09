@@ -354,6 +354,251 @@ const bondingCurveABI = [
 		"type": "function"
 	}
 ];
+const ERC20ABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "_name",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_symbol",
+				"type": "string"
+			},
+			{
+				"internalType": "address",
+				"name": "bondingCurve",
+				"type": "address"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "Approval",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "Transfer",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "allowance",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "approve",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "balanceOf",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "decimals",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "name",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "symbol",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "totalSupply",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "recipient",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "transfer",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "sender",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "recipient",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "transferFrom",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]
 const factoryAddress = '0xb6C40ec58D006A0A7560B71bd3DFD475f2e13445';
 const factoryContract = new web3.eth.Contract(factoryABI, factoryAddress);
 
@@ -414,6 +659,8 @@ const typeDefs = gql`
   type Query {
     getFactoryAddress: String
     getBondingCurveDetails(bondingCurveAddress: ID!): BondingCurveDetails
+    allowance(tokenAddress: ID!, owner: ID!, spender: ID!): Float
+    getBalance(tokenAddress: ID!, userAddress: ID!): Float
   }
 
   type Mutation {
@@ -429,6 +676,7 @@ const typeDefs = gql`
     ): Token
     buyTokens(bondingCurveAddress: ID!, amount: Float!, slippageTolerance: Int!, privateKey: String!): PurchaseDetails
     sellTokens(bondingCurveAddress: ID!, amount: Float!, slippageTolerance: Int!, privateKey: String!): SellDetails
+    approveToken(bondingCurveAddress: ID!, amount: Float!, privateKey: String!): String
   }
 `;
 
@@ -455,7 +703,29 @@ const resolvers = {
         marketCap: parseFloat(web3.utils.fromWei(marketCap, 'ether')),
         token
       };
-    }
+    },
+    allowance: async (_, { tokenAddress, owner, spender }) => {
+      try {
+        const tokenContract = new web3.eth.Contract(ERC20ABI, tokenAddress);
+        const allowance = await tokenContract.methods.allowance(owner, spender).call();
+        console.log(`Allowance: ${web3.utils.fromWei(allowance, 'ether')} tokens`);
+        return parseFloat(web3.utils.fromWei(allowance, 'ether'));
+      } catch (error) {
+        console.error('Error fetching allowance:', error);
+        throw new Error('Failed to fetch allowance');
+      }
+    },
+    getBalance: async (_, { tokenAddress, userAddress }) => {
+      try {
+        const tokenContract = new web3.eth.Contract(ERC20ABI, tokenAddress);
+        const balance = await tokenContract.methods.balanceOf(userAddress).call();
+        console.log(`Balance: ${web3.utils.fromWei(balance, 'ether')} tokens`);
+        return parseFloat(web3.utils.fromWei(balance, 'ether'));
+      } catch (error) {
+        console.error('Error fetching balance:', error);
+        throw new Error('Failed to fetch balance');
+      }
+    },        
   },
   Mutation: {
     createToken: async (_, { name, symbol, privateKey, description, imageURI, twitter, telegram, website }) => {
@@ -594,21 +864,34 @@ const resolvers = {
         console.log(`Selling tokens to bonding curve: ${bondingCurveAddress}`);
         console.log(`Amount: ${amount}, Slippage Tolerance: ${slippageTolerance}`);
     
+        // Get token address from bonding curve contract
+        const tokenAddress = await bondingCurveContract.methods.token().call();
+        const tokenContract = new web3.eth.Contract(ERC20ABI, tokenAddress);
+    
+        // Approve bonding curve to spend tokens
+        console.log('Approving bonding curve to spend tokens...');
+        const approveTx = tokenContract.methods.approve(
+          bondingCurveAddress,
+          web3.utils.toWei(amount.toString(), 'ether')
+        );
+        const approveGas = await approveTx.estimateGas({ from: account.address });
+        await approveTx.send({ from: account.address, gas: approveGas });
+        console.log('Approval successful');
+    
+        // Execute sellTokens
+        console.log('Executing sellTokens...');
         const tx = bondingCurveContract.methods.sellTokens(
           web3.utils.toWei(amount.toString(), 'ether'),
           slippageTolerance
         );
-    
         const gas = await tx.estimateGas({ from: account.address });
-        console.log(`Estimated gas: ${gas}`);
-    
         const receipt = await tx.send({ from: account.address, gas });
+    
         console.log('Transaction receipt:', receipt);
     
         const timestamp = new Date().toISOString();
         const seller = account.address;
         const transactionHash = receipt.transactionHash;
-        const tokenAddress = await bondingCurveContract.methods.token().call();
     
         // Fetching sale details from receipt
         const event = receipt.events.TokensBurned;
@@ -628,7 +911,35 @@ const resolvers = {
         console.error('Error during token sale:', error);
         throw new Error('Token sale failed');
       }
-    },    
+    },
+    approveToken: async (_, { bondingCurveAddress, amount, privateKey }) => {
+      const account = web3.eth.accounts.privateKeyToAccount(privateKey);
+      web3.eth.accounts.wallet.add(account);
+    
+      try {
+        console.log(`Approving bonding curve: ${bondingCurveAddress}`);
+        console.log(`Amount: ${amount}`);
+    
+        // Fetch the token address from the bonding curve
+        const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurveAddress);
+        const tokenAddress = await bondingCurveContract.methods.token().call();
+    
+        // Approve the bonding curve contract to spend tokens
+        const tokenContract = new web3.eth.Contract(ERC20ABI, tokenAddress);
+        const approveTx = tokenContract.methods.approve(
+          bondingCurveAddress,
+          web3.utils.toWei(amount.toString(), 'ether')
+        );
+        const gas = await approveTx.estimateGas({ from: account.address });
+        await approveTx.send({ from: account.address, gas });
+    
+        console.log('Approval successful');
+        return 'Tokens approved successfully';
+      } catch (error) {
+        console.error('Error during token approval:', error);
+        throw new Error('Token approval failed');
+      }
+    },        
   },
 };
 
