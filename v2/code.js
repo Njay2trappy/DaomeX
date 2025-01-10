@@ -862,6 +862,23 @@ const typeDefs = gql`
 		tokenReserve: Float!             # Token reserve in the bonding curve
 		marketCap: Float!                # Market capitalization (from bonding curve)
 	}
+
+	type FActoryToken {
+		address: String!
+		name: String!
+		symbol: String!
+		metadataURI: String
+		imageURI: String
+		bondingCurve: String
+		mint: String
+		totalSupply: Float
+		usdMarketCap: Float
+		tokenPrice: Float
+		virtualReserve: Float
+		tokenReserve: Float
+		marketCap: Float
+		creator: String
+	}
 	type Transaction {
 		type: String!
 		quantity: Float!
@@ -930,8 +947,9 @@ const typeDefs = gql`
 		getMintDetails(mint: String!): Token
   		getMintValue(mint: String!): Trade
 		getTransactions(MintOrAddress: String!, start: Int, limit: Int): [Transaction!]!
-		getFactoryTokens: [Token!]!
-    	getTokens: [Token!]!
+		getFactoryTokens: [FActoryToken!]!
+    	getTokens: [FActoryToken!]!
+		getHolders(mintOrAddress: String!, order: String, limit: Int): [Holder!]!
 	}
 	type ApiKeyResponse {
 		success: Boolean!
@@ -959,6 +977,11 @@ const typeDefs = gql`
 		virtualReserve: Float!
 		tokenReserve: Float!
 		marketCap: Float!
+	}
+	type Holder {
+		address: String!
+		balance: Float!
+		percentageHold: Float!
 	}
 
 	type Mutation {
@@ -1174,34 +1197,45 @@ const resolvers = {
 	},
 	getFactoryTokens: async () => {
 		try {
-			console.log('Fetching tokens from the DAOMEFactory contract...');
-			
-			const totalTokens = await factoryContract.methods.allTokensLength().call();
-			console.log(`Total tokens in factory: ${totalTokens}`);
-
-			const tokens = [];
-			for (let i = 0; i < totalTokens; i++) {
-				const tokenAddress = await factoryContract.methods.allTokens(i).call();
-				const tokenDetails = await factoryContract.methods.getTokenDetails(tokenAddress).call();
-
-				tokens.push({
-					address: tokenAddress,
-					name: tokenDetails[0], // Token name
-					symbol: tokenDetails[1], // Token symbol
-					metadataURI: tokenDetails[2], // Metadata URI
-					imageURI: tokenDetails[3], // Image URI
-					bondingCurve: tokenDetails[4], // Bonding Curve address
-					mint: tokenDetails[5], // Mint identifier
-				});
+			console.log('Fetching tokens directly from factory using events...');
+	
+			// Query the blockchain for all `TokenCreated` events
+			const events = await factoryContract.getPastEvents('TokenCreated', {
+				fromBlock: 0, // Start from the genesis block
+				toBlock: 'latest', // Up to the latest block
+			});
+	
+			if (!events || events.length === 0) {
+				console.log('No tokens found in the factory.');
+				return [];
 			}
-
-			console.log('Fetched tokens from factory:', tokens);
+	
+			// Extract token addresses and details from events
+			const tokens = events.map((event) => {
+				const { token, bondingCurve, metadataURI, imageURI, identifier } = event.returnValues;
+	
+				if (!token) {
+					console.error('Missing token address in event:', event);
+					return null; // Skip invalid events
+				}
+	
+				return {
+					address: token || null,
+					bondingCurve: bondingCurve || null,
+					metadataURI: metadataURI || null,
+					imageURI: imageURI || null,
+					mint: identifier || null,
+				};
+			}).filter((token) => token !== null); // Remove invalid tokens
+	
+			console.log(`Fetched ${tokens.length} tokens from factory.`);
 			return tokens;
 		} catch (error) {
 			console.error('Error fetching tokens from factory:', error);
-			throw new Error('Failed to fetch tokens from the factory.');
+			throw new Error('Failed to fetch tokens from factory.');
 		}
-	},
+	},	
+	
 	getTokens: async () => {
 		try {
 			console.log('Fetching tokens from the MongoDB tokens collection...');
@@ -1228,7 +1262,52 @@ const resolvers = {
 			throw new Error('Failed to fetch tokens from the MongoDB database.');
 		}
 	},
+	getHolders: async (_, { mintOrAddress, order = "asc", limit = 100 }) => {
+		try {
+			let contractAddress;
 
+			// Parse mintOrAddress to determine the contract address
+			if (mintOrAddress.endsWith('DAOME')) {
+				contractAddress = mintOrAddress.replace('DAOME', '');
+				console.log(`Mint provided, parsed contract address: ${contractAddress}`);
+			} else {
+				contractAddress = mintOrAddress;
+				console.log(`Contract address provided: ${contractAddress}`);
+			}
+
+			// Ensure limit is a valid positive number
+			if (isNaN(limit) || limit <= 0) {
+				throw new Error('Invalid limit value. Please provide a positive number.');
+			}
+
+			// Connect to the holders database and query the collection
+			const holdersCollection = holdersConnection.collection(contractAddress);
+
+			// Determine sort order: 1 for ascending, -1 for descending
+			const sortOrder = order.toLowerCase() === 'desc' ? -1 : 1;
+
+			console.log(`Fetching holders for contract address: ${contractAddress}`);
+			console.log(`Order: ${order}, Limit: ${limit}`);
+
+			const holders = await holdersCollection
+				.find({})
+				.sort({ percentageHold: sortOrder }) // Sort by percentageHold
+				.limit(parseInt(limit, 10)) // Apply limit
+				.toArray();
+
+			console.log(`Fetched holders:`, holders);
+
+			// Map the holders to return relevant fields
+			return holders.map(holder => ({
+				address: holder.address,
+				balance: holder.balance,
+				percentageHold: holder.percentageHold,
+			}));
+		} catch (error) {
+			console.error('Error fetching holders:', error);
+			throw new Error('Failed to fetch holders.');
+		}
+	},
   },
   	Mutation: {
 		createToken: async (_, { name, symbol, privateKey, description, twitter, telegram, website }) => {
