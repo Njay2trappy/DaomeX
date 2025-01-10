@@ -114,50 +114,50 @@ contract BondingCurve {
         uint userBalance = ERC20(token).balanceOf(msg.sender);
         require(userBalance >= amount, "Insufficient token balance");
 
-        // Calculate the expected token reserve after the sale
-        uint expectedTokenReserve = tokenReserve + amount;
+        // Calculate the percentage of the supply being sold
+        uint sellPercentage = (amount * 1e18) / tokenReserve;
+        uint feePercentage = sellPercentage / 1e16; // Increase fee by 0.1% for each 1%
+        if (feePercentage > 10) {
+            feePercentage = 10; // Cap fee at 10%
+        }
 
-        // Calculate the sell price using the expected token reserve and current virtual reserve
-        uint sellPrice = (virtualReserve * 1e18) / expectedTokenReserve;
-
-        // Apply a 2% deduction to get the expected price (98% of sellPrice)
-        uint expectedPrice = (sellPrice * 98) / 100;
-
-        // Calculate the minimum acceptable price based on slippage
-        uint minAcceptablePrice = (tokenPrice * (100 - slippagePercent)) / 100;
-
-        // Ensure the expected price does not exceed the current price adjusted by slippage
-        require(expectedPrice >= minAcceptablePrice, "Slippage too high");
-
-        // Calculate the amount of AMB the user will receive
-        uint refund = (amount * expectedPrice) / 1e18;
+        // Calculate sell price
+        uint sellPrice = (tokenPrice * (100 - feePercentage)) / 100;
+        uint refund = (amount * sellPrice) / 1e18;
 
         require(virtualReserve >= refund, "Insufficient virtual reserve");
 
-        // Calculate fee directly from the refund
-        uint fee = (refund * feePercent) / 100;
-        uint netRefund = refund - fee;
+        // Calculate expected reserves and price
+        uint expectedTokenReserve = tokenReserve + amount;
+        uint expectedVirtualReserve = virtualReserve - refund;
+        uint expectedPrice = (expectedVirtualReserve * 1e18) / expectedTokenReserve;
 
-        // Transfer tokens from the user to the bonding curve
+        // Calculate max slippage tolerance based on user input
+        uint maxSlippage = (tokenPrice * (100 - slippagePercent)) / 100;
+
+        // Ensure expected price meets the slippage tolerance
+        require(expectedPrice >= maxSlippage, "Slippage too high");
+
+        // Perform the token transfer and refund
         ERC20(token).transferFrom(msg.sender, address(this), amount);
 
-        // Transfer AMB (after fee deduction) to the user
-        (bool success, ) = payable(msg.sender).call{value: netRefund, gas: 5000}("");
+        uint fee = (refund * feePercentage) / 100;
+        uint netRefund = refund - fee;
+
+        (bool success, ) = payable(msg.sender).call{value: netRefund}("");
         require(success, "Refund transfer failed");
 
-        // Transfer fee to the designated address
-        (success, ) = feeTo.call{value: fee, gas: 5000}("");
+        (success, ) = feeTo.call{value: fee}("");
         require(success, "Fee transfer failed");
 
         emit TokensBurned(msg.sender, amount, netRefund);
 
-        // Update reserves and token price after a successful transaction
+        // Update reserves and token price
         tokenReserve = expectedTokenReserve;
-        virtualReserve -= refund;  // Deduct full refund (before fee)
-        
-        // Update the token price to reflect the expected price (98% of sell price)
+        virtualReserve = expectedVirtualReserve;
         tokenPrice = expectedPrice;
-    }
+}
+
 }
 
 contract DAOMEFactory {
