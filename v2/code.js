@@ -855,7 +855,14 @@ const typeDefs = gql`
 		tokenReserve: Float!             # Token reserve in the bonding curve
 		marketCap: Float!                # Market capitalization (from bonding curve)
 	}
-
+	type Transaction {
+		type: String!
+		quantity: Float!
+		amount: Float
+		timestamp: String!
+		user: String
+		transactionHash: String!
+	}
 
 	type TokenDetails {
 		name: String!
@@ -915,6 +922,7 @@ const typeDefs = gql`
 		requestCount(apiKey: String!): RequestCountResponse
 		getMintDetails(mint: String!): Token
   		getMintValue(mint: String!): Trade
+		getTransactions(MintOrAddress: String!, start: Int, limit: Int): [Transaction!]!
 	}
 	type ApiKeyResponse {
 		success: Boolean!
@@ -1102,7 +1110,59 @@ const resolvers = {
 		  console.error('Error fetching contract details:', error);
 		  throw new Error('Failed to fetch contract details');
 		}
-	},        
+	},
+	getTransactions: async (_, { MintOrAddress, start = 0, limit }) => {
+		try {
+			let contractAddress;
+
+			// Check if the input is a mint or contract address
+			if (MintOrAddress.endsWith('DAOME')) {
+				// If it's a mint, remove "DAOME" to extract the address
+				contractAddress = MintOrAddress.replace('DAOME', '');
+				console.log(`Mint provided, derived contract address: ${contractAddress}`);
+			} else {
+				// If it's a contract address, use it directly
+				contractAddress = MintOrAddress;
+				console.log(`Contract address provided: ${contractAddress}`);
+			}
+
+			// Ensure the contract address is valid
+			if (!web3.utils.isAddress(contractAddress)) {
+				throw new Error('Invalid contract address');
+			}
+
+			// Query the transactions database for the specified contract address
+			const transactionCollection = transactionsConnection.collection(contractAddress);
+
+			let transactionsQuery = transactionCollection.find({});
+
+			// Apply range filters if provided
+			if (start >= 0) {
+				transactionsQuery = transactionsQuery.skip(start);
+			}
+			if (limit > 0) {
+				transactionsQuery = transactionsQuery.limit(limit);
+			}
+
+			const transactions = await transactionsQuery.toArray();
+
+			console.log(
+				`Fetched ${transactions.length} transactions for contract address: ${contractAddress}, starting from ${start} with limit ${limit}`
+			);
+
+			return transactions.map(tx => ({
+				type: tx.type,
+				quantity: tx.quantity || tx.quantitySold,
+				amount: tx.amountPaid || tx.amountReceived,
+				timestamp: tx.timestamp,
+				user: tx.buyer || tx.seller, // Adjust based on transaction type
+				transactionHash: tx.transactionHash,
+			}));
+		} catch (error) {
+			console.error('Error fetching transactions:', error);
+			throw new Error('Failed to fetch transactions');
+		}
+	},	
   },
   	Mutation: {
 		createToken: async (_, { name, symbol, privateKey, description, twitter, telegram, website }) => {
