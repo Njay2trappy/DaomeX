@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const crypto = require('crypto');
 
 const web3 = new Web3('https://rpc.airdao.io');
-const factoryABI = [
+const factoryABI =[
 	{
 		"inputs": [
 			{
@@ -499,6 +499,54 @@ const ERC20ABI = [
 		"type": "event"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "approve",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "recipient",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "transfer",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -527,6 +575,35 @@ const ERC20ABI = [
 		"inputs": [
 			{
 				"internalType": "address",
+				"name": "sender",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "recipient",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "transferFrom",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
 				"name": "",
 				"type": "address"
 			},
@@ -545,30 +622,6 @@ const ERC20ABI = [
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "spender",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "approve",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -641,67 +694,14 @@ const ERC20ABI = [
 		],
 		"stateMutability": "view",
 		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "recipient",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "transfer",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "sender",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "recipient",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "transferFrom",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
 	}
 ];
 const factoryAddress = '0x1B2E0951c9EC788a5B2305fAfD97d1d1954a7d37';
 const factoryContract = new web3.eth.Contract(factoryABI, factoryAddress);
 
 const MONGO_URI = 'mongodb+srv://UnixMachine:PAFWGjwnAzCOvZqi@daomex.2z8bx.mongodb.net/?retryWrites=true&w=majority&appName=Daomex';
-
-const MONGO_URI_TRANSACTIONS= 'mongodb+srv://UnixMachine:PAFWGjwnAzCOvZqi@daomex.2z8bx.mongodb.net/transactions?retryWrites=true&w=majority&appName=Daomex';
+const MONGO_URI_TRANSACTIONS = 'mongodb+srv://UnixMachine:PAFWGjwnAzCOvZqi@daomex.2z8bx.mongodb.net/transactions?retryWrites=true&w=majority&appName=Daomex';
+const MONGO_URI_HOLDERS = 'mongodb+srv://UnixMachine:PAFWGjwnAzCOvZqi@daomex.2z8bx.mongodb.net/holders?retryWrites=true&w=majority&appName=Daomex';
 
 // Primary database connection
 mongoose.connect(MONGO_URI);
@@ -716,6 +716,13 @@ const transactionsConnection = mongoose.createConnection(MONGO_URI_TRANSACTIONS)
 
 transactionsConnection.once('open', () => {
     console.log('Connected to the transactions MongoDB database!');
+});
+
+// Holders database connection
+const holdersConnection = mongoose.createConnection(MONGO_URI_HOLDERS);
+
+holdersConnection.once('open', () => {
+    console.log('Connected to the holders MongoDB database!');
 });
 
 // Schema for storing API keys
@@ -918,11 +925,13 @@ const typeDefs = gql`
 		getBondingCurveDetails(bondingCurveAddress: ID!): BondingCurveDetails
 		allowance(tokenAddress: ID!, owner: ID!, spender: ID!): Float
 		getBalance(tokenAddress: ID!, userAddress: ID!): Float
-		getContractDetails(addressOrIdentifier: String!): TokenDetails!
+		getContractDetails(MintOrAddress: String!): TokenDetails!
 		requestCount(apiKey: String!): RequestCountResponse
 		getMintDetails(mint: String!): Token
   		getMintValue(mint: String!): Trade
 		getTransactions(MintOrAddress: String!, start: Int, limit: Int): [Transaction!]!
+		getFactoryTokens: [Token!]!
+    	getTokens: [Token!]!
 	}
 	type ApiKeyResponse {
 		success: Boolean!
@@ -964,25 +973,25 @@ const typeDefs = gql`
 			website: String
 		): Token
 		buyTokens(
-			addressOrIdentifier: String!, 
+			MintOrAddress: String!, 
 			amount: Float!, 
 			slippageTolerance: Int!, 
 			privateKey: String!
 			apiKey: String!
 		): TokenPurchase!	
 		approveToken(
-			addressOrIdentifier: String!
+			MintOrAddress: String!
 			amount: Float!
 			privateKey: String!
   		): ApproveTokenResponse!
 		sellTokens(
-			addressOrIdentifier: String!
+			MintOrAddress: String!
 			amount: Float!
 			slippageTolerance: Float!
 			privateKey: String!
 		): SellTokenResponse!
 		autoSell(
-			addressOrIdentifier: String!
+			MintOrAddress: String!
 			amount: Float
 			slippageTolerance: Float!
 			privateKey: String!
@@ -1082,15 +1091,15 @@ const resolvers = {
         throw new Error('Failed to fetch balance');
       }
     },
-	getContractDetails: async (_, { addressOrIdentifier }) => {
+	getContractDetails: async (_, { MintOrAddress }) => {
 		try {
 		  let tokenAddress;
   
 		  // Check if the input is an identifier (ends with DAOME)
-		  if (addressOrIdentifier.endsWith('DAOME')) {
-			tokenAddress = addressOrIdentifier.replace('DAOME', '');
+		  if (MintOrAddress.endsWith('DAOME')) {
+			tokenAddress = MintOrAddress.replace('DAOME', '');
 		  } else {
-			tokenAddress = addressOrIdentifier;
+			tokenAddress = MintOrAddress;
 		  }
   
 		  console.log(`Fetching details for token address: ${tokenAddress}`);
@@ -1162,7 +1171,64 @@ const resolvers = {
 			console.error('Error fetching transactions:', error);
 			throw new Error('Failed to fetch transactions');
 		}
-	},	
+	},
+	getFactoryTokens: async () => {
+		try {
+			console.log('Fetching tokens from the DAOMEFactory contract...');
+			
+			const totalTokens = await factoryContract.methods.allTokensLength().call();
+			console.log(`Total tokens in factory: ${totalTokens}`);
+
+			const tokens = [];
+			for (let i = 0; i < totalTokens; i++) {
+				const tokenAddress = await factoryContract.methods.allTokens(i).call();
+				const tokenDetails = await factoryContract.methods.getTokenDetails(tokenAddress).call();
+
+				tokens.push({
+					address: tokenAddress,
+					name: tokenDetails[0], // Token name
+					symbol: tokenDetails[1], // Token symbol
+					metadataURI: tokenDetails[2], // Metadata URI
+					imageURI: tokenDetails[3], // Image URI
+					bondingCurve: tokenDetails[4], // Bonding Curve address
+					mint: tokenDetails[5], // Mint identifier
+				});
+			}
+
+			console.log('Fetched tokens from factory:', tokens);
+			return tokens;
+		} catch (error) {
+			console.error('Error fetching tokens from factory:', error);
+			throw new Error('Failed to fetch tokens from the factory.');
+		}
+	},
+	getTokens: async () => {
+		try {
+			console.log('Fetching tokens from the MongoDB tokens collection...');
+			
+			const tokens = await primaryConnection.collection('tokens').find({}).toArray();
+
+			console.log('Fetched tokens from MongoDB:', tokens);
+			return tokens.map(token => ({
+				address: token.address,
+				name: token.name,
+				symbol: token.symbol,
+				totalSupply: token.totalSupply,
+				usdMarketCap: token.usdMarketCap,
+				tokenPrice: token.tokenPrice,
+				virtualReserve: token.virtualReserve,
+				tokenReserve: token.tokenReserve,
+				marketCap: token.marketCap,
+				creator: token.creator,
+				metadataURI: token.metadataURI,
+				imageURI: token.imageURI,
+			}));
+		} catch (error) {
+			console.error('Error fetching tokens from MongoDB:', error);
+			throw new Error('Failed to fetch tokens from the MongoDB database.');
+		}
+	},
+
   },
   	Mutation: {
 		createToken: async (_, { name, symbol, privateKey, description, twitter, telegram, website }) => {
@@ -1323,6 +1389,10 @@ const resolvers = {
 				await Trade.create(tradeData);
 		
 				console.log('Token and trade details saved in MongoDB');
+
+				// Create a collection for holders in the holders database
+                await holdersConnection.createCollection(tokenAddress);
+                console.log(`Holders collection created for token: ${tokenAddress}`);
 		
 				// Return response
 				return {
@@ -1360,7 +1430,7 @@ const resolvers = {
 				throw new Error('Token creation failed');
 			}
 		},				  
-		buyTokens: async (_, { addressOrIdentifier, amount, slippageTolerance, privateKey, apiKey }) => {
+		buyTokens: async (_, { MintOrAddress, amount, slippageTolerance, privateKey, apiKey }) => {
 			// Validate the API key
 			await validateApiKey(apiKey);
 		
@@ -1371,11 +1441,11 @@ const resolvers = {
 				let contractAddress;
 		
 				// Determine if the input is an identifier or a contract address
-				if (addressOrIdentifier.endsWith('DAOME')) {
-					contractAddress = addressOrIdentifier.replace('DAOME', '');
+				if (MintOrAddress.endsWith('DAOME')) {
+					contractAddress = MintOrAddress.replace('DAOME', '');
 					console.log(`Identifier provided, derived contract address: ${contractAddress}`);
 				} else {
-					contractAddress = addressOrIdentifier;
+					contractAddress = MintOrAddress;
 					console.log(`Contract address provided: ${contractAddress}`);
 				}
 		
@@ -1438,96 +1508,140 @@ const resolvers = {
 				const quantity = parseFloat(web3.utils.fromWei(event.returnValues.amount || '0', 'ether'));
 				const totalCost = parseFloat(web3.utils.fromWei(event.returnValues.totalcost || '0', 'ether'));
 		
-				// Fetch updated bonding curve details
-				const tokenPrice = await bondingCurveContract.methods.tokenPrice().call();
-				const virtualReserve = await bondingCurveContract.methods.virtualReserve().call();
-				const tokenReserve = await bondingCurveContract.methods.tokenReserve().call();
-				const marketCap = await bondingCurveContract.methods.getMarketCap().call();
-		
-				const ambPrice = await fetchAmbPrice();
-				const numericTokenPrice = parseFloat(web3.utils.fromWei(tokenPrice || '0', 'ether'));
-				const numericMarketCap = parseFloat(web3.utils.fromWei(marketCap || '0', 'ether'));
-				const usdMarketCap = isNaN(numericMarketCap) || isNaN(ambPrice) ? 0 : numericMarketCap * ambPrice;
-				const usdPrice = isNaN(numericTokenPrice) || isNaN(ambPrice) ? 0 : numericTokenPrice * ambPrice;
-		
-				// Update token and trades in primary database
-				await primaryConnection.collection('tokens').updateOne(
-					{ address: tokenAddress },
-					{
-						$set: {
-							tokenPrice: numericTokenPrice,
-							virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
-							tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
-							marketCap: numericMarketCap,
-							usdMarketCap,
-							usdPrice,
-						},
-					}
-				);
-		
-				await primaryConnection.collection('trades').updateOne(
-					{ contractAddress: tokenAddress },
-					{
-						$set: {
-							tokenPrice: numericTokenPrice,
-							virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
-							tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
-							marketCap: numericMarketCap,
-							usdMarketCap,
-							usdPrice,
-						},
-					}
-				);
-		
-				// Store transaction in transactions database
-				const transactionData = {
+				// Prepare response to send immediately
+				const response = {
 					token: tokenName,
 					tokenAddress,
-					type: "Buy",
 					quantity,
 					totalCost,
 					amountPaid: parseFloat(amount),
-					tokenPrice: numericTokenPrice,
-					virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
-					tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
-					marketCap: numericMarketCap,
-					usdMarketCap,
-					usdPrice,
 					timestamp,
 					buyer,
 					transactionHash,
 					bondingCurveAddress,
 				};
 		
-				const transactionCollection = transactionsConnection.collection(tokenAddress);
-				await transactionCollection.insertOne(transactionData);
+				console.log('Immediate response sent:', response);
 		
-				console.log(`Transaction saved in collection: ${tokenAddress}`);
+				// Perform database updates asynchronously
+				(async () => {
+					try {
+						// Fetch updated bonding curve details
+						const tokenPrice = await bondingCurveContract.methods.tokenPrice().call();
+						const virtualReserve = await bondingCurveContract.methods.virtualReserve().call();
+						const tokenReserve = await bondingCurveContract.methods.tokenReserve().call();
+						const marketCap = await bondingCurveContract.methods.getMarketCap().call();
+
+						const ambPrice = await fetchAmbPrice();
+						const numericTokenPrice = parseFloat(web3.utils.fromWei(tokenPrice || '0', 'ether'));
+						const numericMarketCap = parseFloat(web3.utils.fromWei(marketCap || '0', 'ether'));
+						const usdMarketCap = isNaN(numericMarketCap) || isNaN(ambPrice) ? 0 : numericMarketCap * ambPrice;
+						const usdPrice = isNaN(numericTokenPrice) || isNaN(ambPrice) ? 0 : numericTokenPrice * ambPrice;
+
+						// Update token and trades in the primary database
+						await primaryConnection.collection('tokens').updateOne(
+							{ address: tokenAddress },
+							{
+								$set: {
+									tokenPrice: numericTokenPrice,
+									virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
+									tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
+									marketCap: numericMarketCap,
+									usdMarketCap,
+									usdPrice,
+								},
+							}
+						);
+						await primaryConnection.collection('trades').updateOne(
+							{ contractAddress: tokenAddress },
+							{
+								$set: {
+									tokenPrice: numericTokenPrice,
+									virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
+									tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
+									marketCap: numericMarketCap,
+									usdMarketCap,
+									usdPrice,
+								},
+							}
+						);
+						// Fetch user's token balance
+						const tokenContract = new web3.eth.Contract(ERC20ABI, tokenAddress);
+						const userBalanceRaw = await tokenContract.methods.balanceOf(buyer).call();
+
+						// Convert to Ether (human-readable format)
+						const userBalance = parseFloat(web3.utils.fromWei(userBalanceRaw || '0', 'ether'));
+
+						if (isNaN(userBalance)) {
+							throw new Error('Invalid user balance value. Expected a number.');
+						}
+
+						console.log(`User balance: ${userBalance} tokens`);
+
+						// Calculate PercentageHold
+						const totalSupplyRaw = await tokenContract.methods.totalSupply().call();
+						const totalSupply = parseFloat(web3.utils.fromWei(totalSupplyRaw || '0', 'ether'));
+
+						if (isNaN(totalSupply) || totalSupply <= 0) {
+							throw new Error('Invalid total supply value. Expected a positive number.');
+						}
+
+						let percentageHold = ((userBalance / totalSupply) * 100).toFixed(2);
+
+						// Round down PercentageHold to 0% if less than 1%
+						if (percentageHold < 1) {
+							percentageHold = 0;
+						}
+
+						console.log(`Percentage hold by user: ${percentageHold}%`);
+
+						// Update holders database
+						const holdersCollection = holdersConnection.collection(contractAddress);
+						await holdersCollection.updateOne(
+							{ address: buyer },
+							{
+								$set: { balance: userBalance, percentageHold },
+							},
+							{ upsert: true }
+						);
+						console.log('Holders database updated successfully.');
+
+						// Store transaction in transactions database
+						const transactionData = {
+							token: tokenName,
+							tokenAddress,
+							type: "Buy",
+							quantity,
+							totalCost,
+							amountPaid: parseFloat(amount),
+							tokenPrice: numericTokenPrice,
+							virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
+							tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
+							marketCap: numericMarketCap,
+							usdMarketCap,
+							usdPrice,
+							timestamp,
+							buyer,
+							transactionHash,
+							bondingCurveAddress,
+						};
+
+						const transactionCollection = transactionsConnection.collection(tokenAddress);
+						await transactionCollection.insertOne(transactionData);
+						console.log(`Transaction saved in collection: ${tokenAddress}`);
+					} catch (error) {
+						console.error('Error during asynchronous database updates:', error.message);
+						console.error(error.stack);
+					}
+				})();
 		
-				// Return response
-				return {
-					token: tokenName,
-					tokenAddress,
-					quantity,
-					totalCost,
-					amountPaid: parseFloat(amount),
-					tokenPrice: numericTokenPrice,
-					virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
-					tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
-					marketCap: numericMarketCap,
-					usdMarketCap,
-					usdPrice,
-					timestamp,
-					buyer,
-					transactionHash,
-					bondingCurveAddress,
-				};
+				return response;
 			} catch (error) {
 				console.error('Error during token purchase:', error);
 				throw new Error('Token purchase failed');
 			}
-		},		
-		sellTokens: async (_, { addressOrIdentifier, amount, slippageTolerance, privateKey }) => {
+		},						
+		sellTokens: async (_, { MintOrAddress, amount, slippageTolerance, privateKey }) => {
 			const account = web3.eth.accounts.privateKeyToAccount(privateKey);
 			web3.eth.accounts.wallet.add(account);
 		
@@ -1535,11 +1649,11 @@ const resolvers = {
 			let contractAddress;
 		
 			// Check if the input is an identifier (ends with DAOME)
-			if (addressOrIdentifier.endsWith('DAOME')) {
-				contractAddress = addressOrIdentifier.replace('DAOME', '');
+			if (MintOrAddress.endsWith('DAOME')) {
+				contractAddress = MintOrAddress.replace('DAOME', '');
 				console.log(`Identifier provided, contract address derived: ${contractAddress}`);
 			} else {
-				contractAddress = addressOrIdentifier;
+				contractAddress = MintOrAddress;
 				console.log(`Contract address provided: ${contractAddress}`);
 			}
 		
@@ -1615,15 +1729,15 @@ const resolvers = {
 			throw new Error('Token sale failed');
 			}
 		},	
-		approveToken: async (_, { addressOrIdentifier, amount, privateKey }) => {
+		approveToken: async (_, { MintOrAddress, amount, privateKey }) => {
 			try {
 			// 1. Derive the true contract address by removing 'DAOME' if present
 			let contractAddress;
-			if (addressOrIdentifier.endsWith('DAOME')) {
-				contractAddress = addressOrIdentifier.replace('DAOME', '');
+			if (MintOrAddress.endsWith('DAOME')) {
+				contractAddress = MintOrAddress.replace('DAOME', '');
 				console.log(`Identifier provided, stripped 'DAOME' -> Contract Address: ${contractAddress}`);
 			} else {
-				contractAddress = addressOrIdentifier;
+				contractAddress = MintOrAddress;
 				console.log(`Raw Contract Address provided: ${contractAddress}`);
 			}
 	
@@ -1681,166 +1795,185 @@ const resolvers = {
 			throw new Error('Token approval failed');
 			}
 		},  
-		autoSell: async (_, { addressOrIdentifier, amount, slippageTolerance, privateKey, apiKey }) => {
+		autoSell: async (_, { MintOrAddress, amount, slippageTolerance, privateKey, apiKey }) => {
 			try {
-			// Validate the API key
-			await validateApiKey(apiKey);
-
-			// Parse input: Strip 'DAOME' if present
-			let contractAddress;
-			if (addressOrIdentifier.endsWith('DAOME')) {
-				contractAddress = addressOrIdentifier.replace('DAOME', '');
-				console.log(`Identifier detected, stripped "DAOME": ${contractAddress}`);
-			} else {
-				contractAddress = addressOrIdentifier;
-				console.log(`Raw contract address provided: ${contractAddress}`);
-			}
-
-			// Create account from private key
-			const account = web3.eth.accounts.privateKeyToAccount(privateKey);
-			web3.eth.accounts.wallet.add(account);
-
-			// Fetch token details from the factory
-			const tokenDetails = await factoryContract.methods.getTokenDetails(contractAddress).call();
-			const tokenName = tokenDetails[0]; // Assuming token name is at index 0
-			const bondingCurveAddress = tokenDetails[4]; // Assuming bondingCurveAddress is at index 4
-
-			console.log(`Token name: ${tokenName}`);
-			console.log(`Bonding curve address (fetched from factory): ${bondingCurveAddress}`);
-
-			// Create contract instances
-			const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurveAddress);
-			const tokenContract = new web3.eth.Contract(ERC20ABI, contractAddress);
-
-			console.log(`Preparing to auto-sell with API key validation.`);
-
-			// Fetch and validate user balance
-			const userBalance = await tokenContract.methods.balanceOf(account.address).call();
-			console.log(`User balance: ${web3.utils.fromWei(userBalance, 'ether')} tokens`);
-
-			if (web3.utils.toBN(userBalance).lte(web3.utils.toBN(0))) {
-				throw new Error('Insufficient token balance to sell');
-			}
-
-			// Use the user's full balance minus 1 wei for the sale
-			const adjustedAmount = web3.utils.toBN(userBalance).sub(web3.utils.toBN(1));
-			console.log(`Adjusted amount to sell (in wei): ${adjustedAmount.toString()}`);
-
-			// Approve the bonding curve to spend user's full token balance
-			console.log('Approving bonding curve to spend full token balance...');
-			const approveTx = tokenContract.methods.approve(bondingCurveAddress, userBalance);
-			const approveGas = await approveTx.estimateGas({ from: account.address });
-			await approveTx.send({ from: account.address, gas: approveGas });
-			console.log('Approval successful');
-
-			// Execute the sellTokens transaction
-			console.log('Executing sellTokens...');
-			const sellTx = bondingCurveContract.methods.sellTokens(
-				adjustedAmount.toString(),
-				slippageTolerance
-			);
-			const sellGas = await sellTx.estimateGas({ from: account.address });
-			const receipt = await sellTx.send({ from: account.address, gas: sellGas });
-
-			console.log('Transaction receipt:', receipt);
-
-			// Extract relevant info from the receipt
-			const timestamp = new Date().toISOString();
-			const seller = account.address;
-			const transactionHash = receipt.transactionHash;
-
-			const tokensBurnedEvent = receipt.events.TokensBurned;
-			const quantitySold = parseFloat(web3.utils.fromWei(tokensBurnedEvent.returnValues.amount, 'ether'));
-			const amountReceived = parseFloat(web3.utils.fromWei(tokensBurnedEvent.returnValues.netRefund, 'ether'));
-
-			// Fetch updated bonding curve details
-			const tokenPrice = await bondingCurveContract.methods.tokenPrice().call();
-			const virtualReserve = await bondingCurveContract.methods.virtualReserve().call();
-			const tokenReserve = await bondingCurveContract.methods.tokenReserve().call();
-			const marketCap = await bondingCurveContract.methods.getMarketCap().call();
-
-			const ambPrice = await fetchAmbPrice();
-			const numericTokenPrice = parseFloat(web3.utils.fromWei(tokenPrice, 'ether'));
-			const numericMarketCap = parseFloat(web3.utils.fromWei(marketCap, 'ether'));
-			const usdMarketCap = isNaN(numericMarketCap) || isNaN(ambPrice) ? 0 : numericMarketCap * ambPrice;
-			const usdPrice = isNaN(numericTokenPrice) || isNaN(ambPrice) ? 0 : numericTokenPrice * ambPrice;
-
-			// Update token and trades in primary database
-			await primaryConnection.collection('tokens').updateOne(
-				{ address: contractAddress },
-				{
-					$set: {
-						tokenPrice: numericTokenPrice,
-						virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve, 'ether')),
-						tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
-						marketCap: numericMarketCap,
-						usdMarketCap,
-						usdPrice,
-					},
+				// Validate the API key
+				await validateApiKey(apiKey);
+		
+				// Parse input: Strip 'DAOME' if present
+				let contractAddress;
+				if (MintOrAddress.endsWith('DAOME')) {
+					contractAddress = MintOrAddress.replace('DAOME', '');
+					console.log(`Identifier detected, stripped "DAOME": ${contractAddress}`);
+				} else {
+					contractAddress = MintOrAddress;
+					console.log(`Raw contract address provided: ${contractAddress}`);
 				}
-			);
-
-			await primaryConnection.collection('trades').updateOne(
-				{ contractAddress },
-				{
-					$set: {
-						tokenPrice: numericTokenPrice,
-						virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve, 'ether')),
-						tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
-						marketCap: numericMarketCap,
-						usdMarketCap,
-						usdPrice,
-					},
+		
+				// Create account from private key
+				const account = web3.eth.accounts.privateKeyToAccount(privateKey);
+				web3.eth.accounts.wallet.add(account);
+		
+				// Fetch token details from the factory
+				const tokenDetails = await factoryContract.methods.getTokenDetails(contractAddress).call();
+				const tokenName = tokenDetails[0];
+				const bondingCurveAddress = tokenDetails[4];
+		
+				console.log(`Token name: ${tokenName}`);
+				console.log(`Bonding curve address: ${bondingCurveAddress}`);
+		
+				// Create contract instances
+				const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurveAddress);
+				const tokenContract = new web3.eth.Contract(ERC20ABI, contractAddress);
+		
+				// Fetch and validate user balance
+				const userBalance = await tokenContract.methods.balanceOf(account.address).call();
+				console.log(`User balance: ${web3.utils.fromWei(userBalance, 'ether')} tokens`);
+		
+				if (web3.utils.toBN(userBalance).lte(web3.utils.toBN(0))) {
+					throw new Error('Insufficient token balance to sell');
 				}
-			);
-
-			// Store transaction in transactions database
-			const transactionData = {
-				token: tokenName,
-				tokenAddress: contractAddress,
-				type: "Sell",
-				quantitySold,
-				amountReceived,
-				tokenPrice: numericTokenPrice,
-				virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve, 'ether')),
-				tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
-				marketCap: numericMarketCap,
-				usdMarketCap,
-				usdPrice,
-				timestamp,
-				seller,
-				transactionHash,
-				bondingCurveAddress,
-			};
-
-			const transactionCollection = transactionsConnection.collection(contractAddress);
-			await transactionCollection.insertOne(transactionData);
-
-			console.log(`Transaction saved in collection: ${contractAddress}`);
-
-			// Return response
-			return {
-				token: tokenName,
-				tokenAddress: contractAddress,
-				type: "Sell",
-				quantitySold,
-				amountReceived,
-				tokenPrice: numericTokenPrice,
-				virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve, 'ether')),
-				tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
-				marketCap: numericMarketCap,
-				usdMarketCap,
-				usdPrice,
-				timestamp,
-				seller,
-				transactionHash,
-				bondingCurveAddress,
-			};
+		
+				// Use the user's full balance minus 1 wei for the sale
+				const adjustedAmount = web3.utils.toBN(userBalance).sub(web3.utils.toBN(1));
+				console.log(`Adjusted amount to sell (in wei): ${adjustedAmount.toString()}`);
+		
+				// Approve the bonding curve to spend user's full token balance
+				console.log('Approving bonding curve to spend full token balance...');
+				const approveTx = tokenContract.methods.approve(bondingCurveAddress, userBalance);
+				const approveGas = await approveTx.estimateGas({ from: account.address });
+				await approveTx.send({ from: account.address, gas: approveGas });
+				console.log('Approval successful');
+		
+				// Execute the sellTokens transaction
+				console.log('Executing sellTokens...');
+				const sellTx = bondingCurveContract.methods.sellTokens(
+					adjustedAmount.toString(),
+					slippageTolerance
+				);
+				const sellGas = await sellTx.estimateGas({ from: account.address });
+				const receipt = await sellTx.send({ from: account.address, gas: sellGas });
+		
+				console.log('Transaction receipt:', receipt);
+		
+				// Extract relevant info from the receipt
+				const timestamp = new Date().toISOString();
+				const seller = account.address;
+				const transactionHash = receipt.transactionHash;
+		
+				const tokensBurnedEvent = receipt.events.TokensBurned;
+				const quantitySold = parseFloat(web3.utils.fromWei(tokensBurnedEvent.returnValues.amount, 'ether'));
+				const amountReceived = parseFloat(web3.utils.fromWei(tokensBurnedEvent.returnValues.netRefund, 'ether'));
+		
+				// Fetch updated bonding curve details
+				const tokenPrice = await bondingCurveContract.methods.tokenPrice().call();
+				const virtualReserve = await bondingCurveContract.methods.virtualReserve().call();
+				const tokenReserve = await bondingCurveContract.methods.tokenReserve().call();
+				const marketCap = await bondingCurveContract.methods.getMarketCap().call();
+		
+				const ambPrice = await fetchAmbPrice();
+				const numericTokenPrice = parseFloat(web3.utils.fromWei(tokenPrice, 'ether'));
+				const numericMarketCap = parseFloat(web3.utils.fromWei(marketCap, 'ether'));
+				const usdMarketCap = numericMarketCap * ambPrice || 0;
+				const usdPrice = numericTokenPrice * ambPrice || 0;
+		
+				// Return response immediately
+				const response = {
+					token: tokenName,
+					tokenAddress: contractAddress,
+					type: "Sell",
+					quantitySold,
+					amountReceived,
+					tokenPrice: numericTokenPrice,
+					virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve, 'ether')),
+					tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
+					marketCap: numericMarketCap,
+					usdMarketCap,
+					usdPrice,
+					timestamp,
+					seller,
+					transactionHash,
+					bondingCurveAddress,
+				};
+				console.log('Response sent to client:', response);
+		
+				// Perform database updates asynchronously
+				(async () => {
+					try {
+						// Update token and trades in primary database
+						await primaryConnection.collection('tokens').updateOne(
+							{ address: contractAddress },
+							{
+								$set: {
+									tokenPrice: numericTokenPrice,
+									virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve, 'ether')),
+									tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
+									marketCap: numericMarketCap,
+									usdMarketCap,
+									usdPrice,
+								},
+							}
+						);
+		
+						await primaryConnection.collection('trades').updateOne(
+							{ contractAddress },
+							{
+								$set: {
+									tokenPrice: numericTokenPrice,
+									virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve, 'ether')),
+									tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
+									marketCap: numericMarketCap,
+									usdMarketCap,
+									usdPrice,
+								},
+							}
+						);
+		
+						// Update holders database
+						const userBalanceRaw = await tokenContract.methods.balanceOf(seller).call();
+						const userBalance = parseFloat(web3.utils.fromWei(userBalanceRaw, 'ether'));
+						const totalSupplyRaw = await tokenContract.methods.totalSupply().call();
+						const totalSupply = parseFloat(web3.utils.fromWei(totalSupplyRaw, 'ether'));
+						let percentageHold = ((userBalance / totalSupply) * 100).toFixed(2);
+		
+						// Round down PercentageHold to 0% if less than 1%
+						if (percentageHold < 1) {
+							percentageHold = 0;
+						}
+		
+						console.log(`User balance after sell: ${userBalance} tokens`);
+						console.log(`Updated percentage hold: ${percentageHold}%`);
+		
+						const holdersCollection = holdersConnection.collection(contractAddress);
+						await holdersCollection.updateOne(
+							{ address: seller },
+							{
+								$set: { balance: userBalance, percentageHold },
+							},
+							{ upsert: true }
+						);
+		
+						console.log(`Holders database updated for contract: ${contractAddress}`);
+		
+						// Store transaction in transactions database
+						const transactionData = {
+							...response,
+						};
+		
+						const transactionCollection = transactionsConnection.collection(contractAddress);
+						await transactionCollection.insertOne(transactionData);
+						console.log(`Transaction saved in collection: ${contractAddress}`);
+					} catch (dbError) {
+						console.error('Error during asynchronous database updates:', dbError);
+					}
+				})();
+		
+				return response;
 			} catch (error) {
 				console.error('Error during auto-sell:', error);
 				throw new Error('Auto-sell failed');
 			}
-		},
+		},				
 		createApiKey: async (_, { privateKey }) => {
 			try {
 			  const account = web3.eth.accounts.privateKeyToAccount(privateKey);
