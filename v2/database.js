@@ -2,7 +2,7 @@
 const mongoose = require('mongoose');
 
 // Replace with your actual connection string
-const MONGO_URI = 'mongodb+srv://UnixMachine:<db_password>@daomex.2z8bx.mongodb.net/?retryWrites=true&w=majority&appName=Daomex';
+const MONGO_URI = 'mongodb+srv://UnixMachine:PAFWGjwnAzCOvZqi@daomex.2z8bx.mongodb.net/?retryWrites=true&w=majority&appName=Daomex';
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log('Connected to MongoDB Atlas successfully!'))
@@ -12,5 +12,5 @@ mongoose.connect(MONGO_URI)
   });
 
 
-  PAFWGjwnAzCOvZqi
-  UnixMachine
+  //PAFWGjwnAzCOvZqi
+  //UnixMachine

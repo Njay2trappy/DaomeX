@@ -47,11 +47,11 @@ contract ERC20 {
 
 contract BondingCurve {
     address public token;
-    uint public virtualReserve = 20000 ether;  // Virtual liquidity
+    uint public virtualReserve = 200000 ether;  // Virtual liquidity
     uint public slope = 1e18;
     uint public feePercent = 1;
     address public feeTo = 0xFB9d8C2218e310a40276d1C6f6D0cF3f725fc0d7;
-    uint public initialPrice = 2e13; // 0.00002 AMB
+    uint public initialPrice = 2e14; // 0.00002 AMB
     uint public tokenPrice = initialPrice;
     uint public tokenReserve = 1_000_000_000 ether;  // Total token supply in bonding curve
 
