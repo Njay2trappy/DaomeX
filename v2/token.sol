@@ -45,17 +45,18 @@ contract ERC20 {
     }
 }
 
+
 contract BondingCurve {
     address public token;
-    uint public virtualReserve = 200000 ether;  // Virtual liquidity
+    uint public virtualReserve = 20000 ether;  // Virtual liquidity
     uint public slope = 1e18;
-    uint public feePercent = 1;
+    uint public feePercent = 1; // Fee percentage for buy/sell transactions
     address public feeTo = 0xFB9d8C2218e310a40276d1C6f6D0cF3f725fc0d7;
-    uint public initialPrice = 2e14; // 0.00002 AMB
+    uint public initialPrice = 2e13; // 0.00002 AMB
     uint public tokenPrice = initialPrice;
     uint public tokenReserve = 1_000_000_000 ether;  // Total token supply in bonding curve
 
-    event TokensPurchased(address indexed buyer, uint amount, uint totalcost);
+    event TokensPurchased(address indexed buyer, uint amount, uint totalCost);
     event TokensBurned(address indexed seller, uint amount, uint netRefund);
 
     function initialize(address _token) external {
@@ -64,36 +65,35 @@ contract BondingCurve {
     }
 
     function updatePrice() internal {
+        require(tokenReserve > 0, "BondingCurve: Token reserve must be positive");
         tokenPrice = (virtualReserve * 1e18) / tokenReserve;
     }
 
     function getMarketCap() external view returns (uint) {
-        return virtualReserve;  // Market cap directly reflects the virtual reserve
+        return virtualReserve; // Market cap directly reflects the virtual reserve
     }
 
-
     function buyTokens(uint slippageTolerancePercent) external payable {
-        uint fee = (msg.value * feePercent) / 100;
-        uint totalCost = msg.value;
-        uint netAmount = totalCost - fee;
-
+        require(msg.value > 0, "BondingCurve: ETH required for purchase");
         require(tokenReserve > 0, "BondingCurve: No tokens in reserve");
 
-        // Calculate expected virtual reserve after purchase
+        uint fee = (msg.value * feePercent) / 100;
+        uint netAmount = msg.value - fee;
+
+        // Calculate expected virtual reserve and price
         uint expectedVirtualReserve = virtualReserve + netAmount;
         uint expectedPrice = (expectedVirtualReserve * 1e18) / tokenReserve;
 
-        // Calculate the amount of tokens at the expected price
-        uint amount = (netAmount * 1e18) / expectedPrice;
-
-        // Apply slippage check: ensure the new price does not exceed tolerance
+        // Apply slippage check
         uint maxAcceptablePrice = (tokenPrice * (100 + slippageTolerancePercent)) / 100;
-        require(expectedPrice <= maxAcceptablePrice, "Slippage too high");
+        require(expectedPrice <= maxAcceptablePrice, "BondingCurve: Slippage too high");
 
-        require(amount > 0, "Insufficient ETH to buy");
-        require(tokenReserve >= amount, "Insufficient token reserve");
+        // Calculate token amount
+        uint amount = (netAmount * 1e18) / expectedPrice;
+        require(amount > 0, "BondingCurve: Insufficient ETH to buy tokens");
+        require(tokenReserve >= amount, "BondingCurve: Insufficient token reserve");
 
-        // Transfer purchased tokens to the user
+        // Transfer tokens to buyer
         ERC20(token).transfer(msg.sender, amount);
 
         // Update reserves and price
@@ -101,54 +101,54 @@ contract BondingCurve {
         tokenReserve -= amount;
         tokenPrice = expectedPrice;
 
-        // Transfer fee
-        (bool success, ) = feeTo.call{value: fee, gas: 5000}("");
-        require(success, "Fee transfer failed");
+        // Transfer fee to fee recipient
+        (bool success, ) = feeTo.call{value: fee}("");
+        require(success, "BondingCurve: Fee transfer failed");
 
-        emit TokensPurchased(msg.sender, amount, totalCost);
+        emit TokensPurchased(msg.sender, amount, msg.value);
     }
 
     function sellTokens(uint amount, uint slippagePercent) external {
-        require(amount > 0, "Amount must be greater than zero");
+        require(amount > 0, "BondingCurve: Amount must be greater than zero");
 
         uint userBalance = ERC20(token).balanceOf(msg.sender);
-        require(userBalance >= amount, "Insufficient token balance");
+        require(userBalance >= amount, "BondingCurve: Insufficient token balance");
 
-        // Calculate the percentage of the supply being sold
+        // Calculate sell percentage and fee
         uint sellPercentage = (amount * 1e18) / tokenReserve;
-        uint feePercentage = sellPercentage / 1e16; // Increase fee by 0.1% for each 1%
+        uint feePercentage = sellPercentage / 1e16; // Increase fee by 0.1% for every 1%
         if (feePercentage > 10) {
             feePercentage = 10; // Cap fee at 10%
         }
 
-        // Calculate sell price
+        // Calculate sell price and refund
         uint sellPrice = (tokenPrice * (100 - feePercentage)) / 100;
         uint refund = (amount * sellPrice) / 1e18;
-
-        require(virtualReserve >= refund, "Insufficient virtual reserve");
+        require(refund > 0, "BondingCurve: Refund too small");
+        require(virtualReserve >= refund, "BondingCurve: Insufficient virtual reserve");
 
         // Calculate expected reserves and price
         uint expectedTokenReserve = tokenReserve + amount;
         uint expectedVirtualReserve = virtualReserve - refund;
         uint expectedPrice = (expectedVirtualReserve * 1e18) / expectedTokenReserve;
 
-        // Calculate max slippage tolerance based on user input
+        // Apply slippage tolerance
         uint maxSlippage = (tokenPrice * (100 - slippagePercent)) / 100;
+        require(expectedPrice >= maxSlippage, "BondingCurve: Slippage too high");
 
-        // Ensure expected price meets the slippage tolerance
-        require(expectedPrice >= maxSlippage, "Slippage too high");
-
-        // Perform the token transfer and refund
+        // Transfer tokens from user and refund AMB
         ERC20(token).transferFrom(msg.sender, address(this), amount);
 
-        uint fee = (refund * feePercentage) / 100;
+        // Calculate and transfer refund
+        uint fee = (refund * feePercent) / 100;
         uint netRefund = refund - fee;
 
         (bool success, ) = payable(msg.sender).call{value: netRefund}("");
-        require(success, "Refund transfer failed");
+        require(success, "BondingCurve: Refund transfer failed");
 
+        // Transfer fee to fee recipient
         (success, ) = feeTo.call{value: fee}("");
-        require(success, "Fee transfer failed");
+        require(success, "BondingCurve: Fee transfer failed");
 
         emit TokensBurned(msg.sender, amount, netRefund);
 
@@ -156,8 +156,7 @@ contract BondingCurve {
         tokenReserve = expectedTokenReserve;
         virtualReserve = expectedVirtualReserve;
         tokenPrice = expectedPrice;
-}
-
+    }
 }
 
 contract DAOMEFactory {
