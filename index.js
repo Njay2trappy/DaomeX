@@ -2150,8 +2150,11 @@ const resolvers = {
 	},
 };
 
-const server = new ApolloServer({ typeDefs, resolvers });
-
+const server = new ApolloServer({
+	typeDefs,
+	resolvers,
+	introspection: true, // Enables introspection for Apollo Studio
+});
 server.listen().then(({ url }) => {
   console.log(`Server ready at ${url}`);
 });
