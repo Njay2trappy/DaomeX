@@ -1235,7 +1235,6 @@ const resolvers = {
 			throw new Error('Failed to fetch tokens from factory.');
 		}
 	},	
-	
 	getTokens: async () => {
 		try {
 			console.log('Fetching tokens from the MongoDB tokens collection...');
