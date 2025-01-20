@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAOME - Web3 Authentication</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to DAOME</h1>
+
+        <!-- ✅ Connection Status -->
+        <p id="status">Not connected</p>
+
+        <!-- ✅ Connect to MetaMask -->
+        <button id="connectMetaMask">🔗 Connect with MetaMask</button>
+        
+        <!-- ✅ Logout Button (Hidden by default) -->
+        <button id="logoutMetaMask" style="display: none;">🔌 Logout</button>
+
+        <hr>
+
+        <!-- ✅ User Details (Hidden until connected) -->
+        <div id="userDetails" style="display: none;">
+            <h2>User Profile</h2>
+            <p><strong>Username:</strong> <span id="usernameDisplay"></span></p>
+            <p><strong>Wallet Address:</strong> <span id="walletDisplay"></span></p>
+            <p><strong>Bio:</strong> <span id="bioDisplay"></span></p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
