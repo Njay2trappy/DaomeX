@@ -5,6 +5,7 @@ const bcrypt = require("bcryptjs");
 const { v4: uuidv4 } = require("uuid");
 const { UserModel, AuthModel, Token, Trade } = require("./db"); // ✅ Corrected impor
 const { transactionsConnection } = require("./transactions")
+const { HolderModel } = require("./holders"); // ✅ Ensure this is correctly imported from db.js
 require("dotenv").config(); // Ensure dotenv is required at the top
 
 const SECRET_KEY = process.env.SECRET_KEY || "supersecretkey"; // Secure Secret Key
@@ -777,60 +778,6 @@ const resolvers = {
         throw new Error("Failed to fetch balance.");
       }
     },
-    /*getTransactions: async (_, { MintOrAddress, start = 0, limit }, { user }) => {
-      if (!user) {
-        throw new Error("❌ Authentication required. Please log in.");
-      }
-    
-      try {
-        let contractAddress;
-    
-        // Check if the input is a mint or contract address
-        if (MintOrAddress.endsWith("DAOME")) {
-          contractAddress = MintOrAddress.replace("DAOME", "");
-          console.log(`Mint provided, derived contract address: ${contractAddress}`);
-        } else {
-          contractAddress = MintOrAddress;
-          console.log(`Contract address provided: ${contractAddress}`);
-        }
-    
-        // Validate the contract address
-        if (!web3.utils.isAddress(contractAddress)) {
-          throw new Error("Invalid contract address");
-        }
-    
-        // Query the transactions database
-        const transactionCollection = transactionsConnection.collection(contractAddress);
-    
-        let transactionsQuery = transactionCollection.find({});
-    
-        // Apply range filters
-        if (start >= 0) {
-          transactionsQuery = transactionsQuery.skip(start);
-        }
-        if (limit > 0) {
-          transactionsQuery = transactionsQuery.limit(limit);
-        }
-    
-        const transactions = await transactionsQuery.toArray();
-    
-        console.log(
-          `📜 Retrieved ${transactions.length} transactions for contract: ${contractAddress}`
-        );
-    
-        return transactions.map((tx) => ({
-          type: tx.type,
-          quantity: tx.quantity || tx.quantitySold,
-          amount: tx.amountPaid || tx.amountReceived,
-          timestamp: tx.timestamp,
-          user: tx.buyer || tx.seller,
-          transactionHash: tx.transactionHash,
-        }));
-      } catch (error) {
-        console.error("❌ Error fetching transactions:", error);
-        throw new Error("Failed to fetch transactions.");
-      }
-    },*/
     getTransactions: async (_, { MintOrAddress, start = 0, limit = 10 }) => {
       try {
           let contractAddress;
@@ -876,61 +823,72 @@ const resolvers = {
           console.error("❌ Error fetching transactions:", error);
           throw new Error("Failed to fetch transactions.");
       }
-    },   
+    }, 
+    getHolders: async (_, { mintOrAddress, order = "asc", limit = 100 }, { user }) => {
+      if (!user || !user.walletAddress) {
+        throw new Error("❌ Authentication required. Please log in.");
+      }
+
+      try {
+        let contractAddress;
+
+        // Determine if input is a mint or contract address
+        if (mintOrAddress.endsWith("DAOME")) {
+          contractAddress = mintOrAddress.replace("DAOME", "");
+          console.log(`Mint provided, parsed contract address: ${contractAddress}`);
+        } else {
+          contractAddress = mintOrAddress;
+          console.log(`Contract address provided: ${contractAddress}`);
+        }
+
+        // Validate limit
+        if (isNaN(limit) || limit <= 0) {
+          throw new Error("Invalid limit value. Please provide a positive number.");
+        }
+
+        // Determine sorting order (Descending for Top holders, Ascending for Least holders)
+        const sortOrder = order.toLowerCase() === "desc" ? -1 : 1;
+
+        console.log(`🔑 Authorized User: ${user.walletAddress}`);
+        console.log(`📊 Fetching holders for contract: ${contractAddress}`);
+        console.log(`🔄 Order: ${order.toUpperCase()}, Limit: ${limit}`);
+
+        // Query the correct MongoDB collection dynamically based on contract address
+        const holdersCollection = holdersConnection.collection(contractAddress);
+
+        const holders = await holdersCollection
+          .find({})
+          .sort({ percentageHold: sortOrder }) // Sort based on percentage of holdings
+          .limit(parseInt(limit, 10))
+          .toArray();
+
+        console.log(`✅ Fetched ${holders.length} holders for ${contractAddress}`);
+
+        return holders.map(holder => ({
+          address: holder.address,
+          balance: holder.balance,
+          percentageHold: holder.percentageHold,
+        }));
+      } catch (error) {
+        console.error("❌ Error fetching holders:", error);
+        throw new Error("Failed to fetch holders.");
+      }
+    },    
   },
 
   Mutation: {
     // ✅ MetaMask Authentication & User Registration/Login
-    metaMaskAuth: async (_, { signature, parentAddress, username, bio }) => {
-      console.log(`🔑 Authentication request from ${parentAddress}`);
+    metaMaskAuth: async (_, { parentAddress, signature }) => {
+      console.log(`🔑 MetaMask authentication request from: ${parentAddress}`);
 
-      // ✅ Check if user already exists
-      let existingUser = await UserModel.findOne({ parentAddress });
+      // Check if user already exists
+      const existingUser = await UserModel.findOne({ parentAddress });
 
       if (!existingUser) {
-        // ✅ Step 1: New User Registration
-        if (!username) {
-          throw new Error("❌ New users must provide a username.");
-        }
-
-        const generatedWallet = web3.eth.accounts.create();
-        const walletAddress = generatedWallet.address;
-        const privateKey = generatedWallet.privateKey;
-
-        console.log(`🎉 New user: ${username}.DAOME with wallet ${walletAddress}`);
-
-        // ✅ Encrypt Private Key (Secure Storage)
-        const saltRounds = 12;
-        const encryptedPrivateKey = await bcrypt.hash(privateKey, saltRounds);
-
-        // ✅ Step 2: Store User & Auth Data
-        const userProfile = {
-          username: `${username}.DAOME`,
-          bio: bio || "",
-          walletAddress,
-          parentAddress,
-          createdAt: new Date(),
-        };
-
-        const authData = {
-          walletAddress,
-          parentAddress,
-          encryptedPrivateKey,
-          createdAt: new Date(),
-        };
-
-        // ✅ Insert into MongoDB
-        await UserModel.create(userProfile);
-        await AuthModel.create(authData);
-
-        console.log(`✅ User Profile & Auth Data Stored for ${username}.DAOME`);
-
-        existingUser = userProfile;
-      } else {
-        console.log(`✅ Existing user logged in: ${existingUser.username}`);
+        throw new Error("❌ No account found. Please sign up first.");
       }
 
-      // ✅ Generate JWT Token
+      // ✅ Generate & Return JWT Session Token
       const token = jwt.sign(
         {
           walletAddress: existingUser.walletAddress,
@@ -940,11 +898,73 @@ const resolvers = {
         { expiresIn: "2h" }
       );
 
+      console.log(`✅ User authenticated: ${existingUser.username}`);
       return {
         token,
         walletAddress: existingUser.walletAddress,
         username: existingUser.username,
         bio: existingUser.bio,
+      };
+    },
+
+    // ✅ User Sign-Up
+    signUpUser: async (_, { parentAddress, username, bio }) => {
+      console.log(`🆕 Sign-up request from: ${parentAddress}`);
+
+      // ✅ Check if user already exists
+      const existingUser = await UserModel.findOne({ parentAddress });
+
+      if (existingUser) {
+        throw new Error("❌ User already exists. Please log in.");
+      }
+
+      // ✅ Generate Wallet (for New Users)
+      const generatedWallet = web3.eth.accounts.create();
+      const walletAddress = generatedWallet.address;
+      const privateKey = generatedWallet.privateKey;
+
+      console.log(`🎉 New user: ${username}.DAOME with wallet ${walletAddress}`);
+
+      // ✅ Encrypt Private Key
+      const saltRounds = 12;
+      const encryptedPrivateKey = await bcrypt.hash(privateKey, saltRounds);
+
+      // ✅ Create & Store User Profile
+      const userProfile = {
+        username: `${username}.DAOME`,
+        bio: bio || "",
+        walletAddress,
+        parentAddress,
+        createdAt: new Date(),
+      };
+
+      const authData = {
+        walletAddress,
+        parentAddress,
+        encryptedPrivateKey,
+        createdAt: new Date(),
+      };
+
+      await UserModel.create(userProfile);
+      await AuthModel.create(authData);
+
+      console.log(`✅ User Profile & Auth Data Stored for ${username}.DAOME`);
+
+      // ✅ Generate JWT Token for New User
+      const token = jwt.sign(
+        {
+          walletAddress,
+          parentAddress,
+        },
+        SECRET_KEY,
+        { expiresIn: "2h" }
+      );
+
+      return {
+        token,
+        walletAddress,
+        username: `${username}.DAOME`,
+        bio: bio || "",
       };
     },
   },

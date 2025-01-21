@@ -5,8 +5,6 @@ const typeDefs = gql`
     username: String!
     bio: String
     walletAddress: String!
-    parentAddress: String!
-    createdAt: String
   }
 
   type Auth {
@@ -68,6 +66,11 @@ const typeDefs = gql`
 		user: String
 		transactionHash: String!
 	}
+  type Holder {
+    address: String!
+    balance: Float!
+    percentageHold: Float!
+  }
 
   type Query {
     getUserDetails(username: String!): User
@@ -75,10 +78,12 @@ const typeDefs = gql`
     getMintValue(mint: String!): Trade
     getBalance(tokenAddress: ID!, userAddress: ID!): Float
     getTransactions(MintOrAddress: String!, start: Int, limit: Int): [Transaction]!
+    getHolders(mintOrAddress: String!, order: String = "desc", limit: Int = 100): [Holder]!
   }
 
   type Mutation {
-    metaMaskAuth(signature: String!, parentAddress: String!, username: String, bio: String): AuthResponse
+    metaMaskAuth(parentAddress: String!, signature: String!): AuthResponse
+    signUpUser(parentAddress: String!, username: String!, bio: String): AuthResponse
   }
 `;
 
