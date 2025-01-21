@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DAOME - MetaMask Authentication</title>
+    <title>DAOME - MetaMask Authentication & Token Creation</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.7.5/web3.min.js"></script>
 </head>
@@ -26,6 +26,43 @@
             <p><strong>Username:</strong> <span id="userName"></span></p>
             <p><strong>Wallet Address:</strong> <span id="userWallet"></span></p>
             <p><strong>Bio:</strong> <span id="userBio"></span></p>
+        </div>
+
+     <!-- ✅ Image Upload Form -->
+     <div class="image-upload">
+        <h2>Upload Token Image</h2>
+        <form id="imageUploadForm">
+            <input type="file" id="imageInput" accept="image/*" required />
+            <button type="submit">Upload Image</button>
+        </form>
+        <p id="imageStatus"></p>
+    </div>
+
+        <!-- ✅ Create Token Form -->
+        <div class="token-creation">
+            <h2>Create Token</h2>
+            <form id="createTokenForm">
+                <label for="tokenName">Token Name:</label>
+                <input type="text" id="tokenName" name="tokenName" required />
+            
+                <label for="tokenSymbol">Token Symbol:</label>
+                <input type="text" id="tokenSymbol" name="tokenSymbol" required />
+            
+                <label for="tokenDescription">Token Description:</label>
+                <textarea id="tokenDescription" name="tokenDescription"></textarea>
+            
+                <label for="tokenTwitter">Twitter:</label>
+                <input type="url" id="tokenTwitter" name="tokenTwitter" />
+            
+                <label for="tokenTelegram">Telegram:</label>
+                <input type="url" id="tokenTelegram" name="tokenTelegram" />
+            
+                <label for="tokenWebsite">Website:</label>
+                <input type="url" id="tokenWebsite" name="tokenWebsite" />
+            
+                <button type="submit">Create Token</button>
+            </form>            
+            <p id="createTokenStatus"></p>
         </div>
     </div>
 

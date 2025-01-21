@@ -3,6 +3,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const signUpButton = document.getElementById("signUpMetaMask");
     const logoutButton = document.getElementById("logoutMetaMask");
     const statusElement = document.getElementById("status");
+    const imageUploadForm = document.getElementById("imageUploadForm");
+    const tokenImageInput = document.getElementById("tokenImage");
+    const imageInput = document.getElementById("imageInput");
+    const imageStatus = document.getElementById("imageStatus");
+    const createTokenForm = document.getElementById("createTokenForm");
+    const createTokenStatus = document.getElementById("createTokenStatus");
+
+    let uploadedImageURI = "";
 
     const GRAPHQL_ENDPOINT = "http://localhost:4000/graphql"; // Adjust as needed
 
@@ -16,6 +24,62 @@ document.addEventListener("DOMContentLoaded", () => {
     if (logoutButton) {
         logoutButton.addEventListener("click", logoutMetaMask);
     }
+    if (createTokenForm) createTokenForm.addEventListener("submit", handleTokenCreation);
+    // ✅ Image Upload Handling
+    if (imageUploadForm) {
+        imageUploadForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+    
+            const imageFile = imageInput.files[0];
+            if (!imageFile) {
+                alert("❌ Please select an image to upload.");
+                return;
+            }
+    
+            console.log(`📤 Preparing to upload image: ${imageFile.name}`);
+    
+            // Prepare form data for file upload
+            const formData = new FormData();
+            formData.append("operations", JSON.stringify({
+                query: `mutation UploadImage($file: Upload!) {
+                    uploadImage(file: $file)
+                }`,
+                variables: { file: null },
+            }));
+            formData.append("map", JSON.stringify({ "0": ["variables.file"] }));
+            formData.append("0", imageFile);
+    
+            try {
+                const response = await fetch(GRAPHQL_ENDPOINT, {
+                    method: "POST",
+                    body: formData,
+                });
+    
+                const result = await response.json();
+                console.log("📜 Image Upload Response:", result);
+    
+                if (result.errors) {
+                    console.error("❌ Image upload failed:", result.errors);
+                    alert("❌ Image upload failed. Check the console for details.");
+                    return;
+                }
+    
+                const ipfsURI = result.data.uploadImage;
+                console.log("✅ Image uploaded successfully:", ipfsURI);
+    
+                // Store image URI in local storage
+                localStorage.setItem("imageURI", ipfsURI);
+                console.log("📦 Image URI stored in local storage:", ipfsURI);
+    
+                // Update the UI to reflect the uploaded image
+                alert(`✅ Image uploaded successfully! IPFS URI: ${ipfsURI}`);
+                if (imageStatus) imageStatus.innerText = `Image uploaded: ${ipfsURI}`;
+            } catch (error) {
+                console.error("❌ Error during image upload:", error);
+                alert("❌ Something went wrong during image upload. Check console.");
+            }
+        });
+    }   
 
     async function connectMetaMask() {
         try {
@@ -54,6 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     query: `mutation MetaMaskAuth($signature: String!, $parentAddress: String!) {
                         metaMaskAuth(signature: $signature, parentAddress: $parentAddress) {
                             token
+                            parentAddress
                             walletAddress
                             username
                             bio
@@ -74,6 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
             const { token, walletAddress, username, bio } = authResult.data.metaMaskAuth;
             localStorage.setItem("userToken", token);
+            localStorage.setItem("parentAddress", parentAddress);
             localStorage.setItem("walletAddress", walletAddress);
             localStorage.setItem("username", username);
             localStorage.setItem("bio", bio);
@@ -89,8 +155,6 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("❌ Something went wrong during login. Check console.");
         }
     }
-    
-
     async function signUpUser() {
         try {
             if (!window.ethereum) {
@@ -162,7 +226,198 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("❌ Something went wrong during sign-up. Check console.");
         }
     }
+    /*async function createToken(name, symbol, description, twitter, telegram, website, imageFile) {
+        try {
+            // Step 1: Upload Image
+            const formData = new FormData();
+            formData.append("file", imageFile);
+    
+            const imageResponse = await fetch(GRAPHQL_ENDPOINT, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${localStorage.getItem("userToken")}` },
+                body: formData,
+            });
+    
+            const imageResult = await imageResponse.json();
+            if (imageResult.errors) {
+                throw new Error("Image upload failed");
+            }
+    
+            const imageURI = imageResult.data.uploadImage;
+            console.log(`🖼️ Image uploaded: ${imageURI}`);
+    
+            // Step 2: Create Token
+            const tokenResponse = await fetch(GRAPHQL_ENDPOINT, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${localStorage.getItem("userToken")}`,
+                },
+                body: JSON.stringify({
+                    query: `mutation CreateToken($name: String!, $symbol: String!, $description: String, $twitter: String, $telegram: String, $website: String, $imageURI: String!) {
+                        createToken(name: $name, symbol: $symbol, description: $description, twitter: $twitter, telegram: $telegram, website: $website, imageURI: $imageURI) {
+                            name
+                            symbol
+                            address
+                            transactionHash
+                        }
+                    }`,
+                    variables: { name, symbol, description, twitter, telegram, website, imageURI },
+                }),
+            });
+    
+            const tokenResult = await tokenResponse.json();
+            if (tokenResult.errors) {
+                throw new Error("Token creation failed");
+            }
+    
+            console.log(`🎉 Token created:`, tokenResult.data.createToken);
+            alert(`Token created successfully! Address: ${tokenResult.data.createToken.address}`);
+        } catch (error) {
+            console.error("❌ Error during token creation:", error);
+            alert("Token creation failed. Check console for details.");
+        }
+    }*/
+ // 🔄 Function to upload the image
+ /*async function handleImageUpload(event) {
+    event.preventDefault();
 
+    const formData = new FormData(imageUploadForm);
+    const imageFile = formData.get("tokenImage");
+
+    if (!imageFile || imageFile.size === 0) {
+        alert("❌ Please select an image to upload.");
+        return;
+    }
+
+    try {
+        console.log("📤 Uploading image...");
+        const uploadResponse = await fetch(GRAPHQL_ENDPOINT, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+            },
+            body: createMultipartBody(
+                `mutation UploadImage($file: Upload!) {
+                    uploadImage(file: $file)
+                }`,
+                { file: imageFile }
+            ),
+        });
+
+        const uploadResult = await uploadResponse.json();
+        if (uploadResult.errors) {
+            console.error("❌ Image upload failed:", uploadResult.errors);
+            alert("❌ Image upload failed.");
+            return;
+        }
+
+        uploadedImageURI = uploadResult.data.uploadImage;
+        console.log(`🖼️ Image uploaded successfully. URI: ${uploadedImageURI}`);
+        imageStatus.innerText = `Image uploaded successfully! URI: ${uploadedImageURI}`;
+    } catch (error) {
+        console.error("❌ Error during image upload:", error);
+        alert("❌ Something went wrong during image upload. Check console.");
+    }
+}*/
+
+// 🔄 Function to create the token
+async function handleTokenCreation(event) {
+    event.preventDefault();
+
+    const formData = new FormData(createTokenForm);
+    const name = formData.get("tokenName");
+    const symbol = formData.get("tokenSymbol");
+    const description = formData.get("tokenDescription");
+    const twitter = formData.get("tokenTwitter");
+    const telegram = formData.get("tokenTelegram");
+    const website = formData.get("tokenWebsite");
+    const imageURI = localStorage.getItem("imageURI");
+
+    if (!imageURI) {
+        alert("❌ Please upload an image before creating a token.");
+        return;
+    }
+
+    try {
+        console.log(`📜 Initiating token creation for: ${name} (${symbol})`);
+
+        // Step 1: Request transaction data from the backend
+        const response = await fetch(GRAPHQL_ENDPOINT, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+            },
+            body: JSON.stringify({
+                query: `mutation CreateToken($name: String!, $symbol: String!, $description: String, $twitter: String, $telegram: String, $website: String, $imageURI: String!) {
+                    createToken(name: $name, symbol: $symbol, description: $description, twitter: $twitter, telegram: $telegram, website: $website, imageURI: $imageURI) {
+                        encodedTx {
+                            from
+                            to
+                            data
+                            value
+                        }
+                    }
+                }`,
+                variables: { name, symbol, description, twitter, telegram, website, imageURI },
+            }),
+        });
+
+        const result = await response.json();
+        console.log("📜 Backend Response (Debug):", result);
+
+        // Handle errors from backend
+        if (result.errors) {
+            console.error("❌ Backend returned errors:", result.errors);
+            alert("❌ Token creation failed. Check the console for details.");
+            return;
+        }
+
+        const encodedTx = result.data?.createToken?.encodedTx;
+
+        if (!encodedTx) {
+            console.error("❌ encodedTx is not defined in the backend response:", result);
+            alert("❌ Failed to retrieve transaction details. Check the console for more information.");
+            return;
+        }
+
+        // Step 2: Use MetaMask to sign and send the transaction
+        if (!window.ethereum) {
+            alert("❌ MetaMask is not installed. Please install it first.");
+            return;
+        }
+
+        const web3 = new Web3(window.ethereum);
+
+        const receipt = await web3.eth.sendTransaction(encodedTx);
+        console.log(`🎉 Transaction signed and sent! Hash: ${receipt.transactionHash}`);
+        alert(`✅ Token created successfully! Transaction Hash: ${receipt.transactionHash}`);
+    } catch (error) {
+        console.error("❌ Error during token creation:", error);
+        alert("❌ Something went wrong. Check the console.");
+    }
+}
+
+
+
+// 🔄 Helper function to create a multipart request body
+function createMultipartBody(query, variables) {
+    const map = {};
+    const form = new FormData();
+
+    Object.keys(variables).forEach((key, index) => {
+        if (variables[key] instanceof File) {
+            map[index] = [`variables.${key}`];
+            form.append(index, variables[key]);
+        }
+    });
+
+    form.append("operations", JSON.stringify({ query, variables }));
+    form.append("map", JSON.stringify(map));
+
+    return form;
+}    
     function logoutMetaMask() {
         console.log("🔌 Logging out...");
         localStorage.removeItem("userToken");
@@ -190,3 +445,5 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 });
+
+

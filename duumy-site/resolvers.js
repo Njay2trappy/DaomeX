@@ -1,11 +1,17 @@
 const crypto = require("crypto");
 const Web3 = require("web3");
+const { GraphQLUpload } = require("graphql-upload");
+const fs = require("fs");
+const path = require("path");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { v4: uuidv4 } = require("uuid");
+const { createReadStream } = require("fs");
+const axios = require("axios");
+const FormData = require("form-data");
 const { primaryConnection, UserModel, AuthModel, Token, Trade } = require("./db"); // ✅ Corrected impor
-const { transactionsConnection } = require("./transactions")
-const { holdersConnection } = require("./holders"); // ✅ Ensure this is correctly imported from db.js
+const { transactionsConnection, TransactionModel } = require("./transactions")
+const { holdersConnection, HolderModel } = require("./holders"); // ✅ Ensure this is correctly imported from db.js
 require("dotenv").config(); // Ensure dotenv is required at the top
 
 const SECRET_KEY = process.env.SECRET_KEY || "supersecretkey"; // Secure Secret Key
@@ -703,6 +709,7 @@ const factoryAddress = '0x1B2E0951c9EC788a5B2305fAfD97d1d1954a7d37';
 const factoryContract = new web3.eth.Contract(factoryABI, factoryAddress);
 
 const resolvers = {
+  Upload: GraphQLUpload, // Define Upload scalar
   Query: {
     // ✅ Get User Details by Username
     getUserDetails: async (_, { username }, { user }) => {
@@ -966,7 +973,7 @@ const resolvers = {
 		  // ✅ Step 5: Generate JWT Token
 		  const token = jwt.sign(
 			{
-			  walletAddress: existingUser.walletAddress,
+			  walletAddress: parentAddress,
 			  parentAddress,
 			},
 			SECRET_KEY,
@@ -978,7 +985,8 @@ const resolvers = {
 		  // ✅ Step 6: Return user details
 		  return {
 			token,
-			walletAddress: existingUser.walletAddress,
+			parentAddress,
+			walletAddress: parentAddress,
 			username: existingUser.username,
 			bio: existingUser.bio,
 		  };
@@ -987,7 +995,6 @@ const resolvers = {
 		  throw new Error("Authentication failed.");
 		}
 	},
-
     // ✅ User Sign-Up
     signUpUser: async (_, { parentAddress, username, bio }) => {
       console.log(`🆕 Sign-up request from: ${parentAddress}`);
@@ -1048,6 +1055,108 @@ const resolvers = {
         bio: bio || "",
       };
     },
+	uploadImage: async (_, { file }) => {
+		try {
+			const { createReadStream, filename } = await file;
+
+			console.log(`📤 Uploading image: ${filename} to IPFS...`);
+
+			// Read the file stream
+			const stream = createReadStream();
+			const formData = new FormData();
+			formData.append("file", stream, { filename });
+
+			// Upload the file to Pinata IPFS
+			const response = await axios.post(
+				"https://api.pinata.cloud/pinning/pinFileToIPFS",
+				formData,
+				{
+					headers: {
+						...formData.getHeaders(),
+						pinata_api_key: process.env.PINATA_API_KEY,
+						pinata_secret_api_key: process.env.PINATA_SECRET_KEY,
+					},
+				}
+			);
+
+			const ipfsURI = `https://gateway.pinata.cloud/ipfs/${response.data.IpfsHash}`;
+			console.log(`🖼️ Image uploaded to IPFS: ${ipfsURI}`);
+
+			return ipfsURI;
+		} catch (error) {
+			console.error("❌ Error uploading image to IPFS:", error.message);
+			throw new Error("Failed to upload image to IPFS.");
+		}
+	},
+	createToken: async (_, { name, symbol, description, twitter, telegram, website, imageURI }, { user }) => {
+		if (!user || !user.walletAddress) {
+			throw new Error("❌ Authentication required. Please log in.");
+		}
+	
+		try {
+			console.log(`🔑 User Wallet Address: ${user.walletAddress}`);
+			console.log(`Creating token: ${name}, Symbol: ${symbol}`);
+	
+			// Step 1: Verify user balance
+			const userBalance = await web3.eth.getBalance(user.walletAddress);
+			const requiredBalance = web3.utils.toWei('100', 'ether');
+	
+			if (web3.utils.toBN(userBalance).lt(web3.utils.toBN(requiredBalance))) {
+				throw new Error('Insufficient balance to create token');
+			}
+	
+			// Step 2: Create metadata and upload to IPFS
+			const totalSupply = 1_000_000_000;
+	
+			const tokenMetadata = {
+				name,
+				symbol,
+				description,
+				image: imageURI,
+				createdOn: "https://daome.io",
+				twitter: twitter || null,
+				telegram: telegram || null,
+				website: website || null,
+				attributes: [
+					{ trait_type: "Creator", value: user.walletAddress },
+					{ trait_type: "Network", value: "AirDAO" },
+					{ trait_type: "Total Supply", value: totalSupply },
+				],
+			};
+	
+			const metadataResponse = await axios.post(
+				'https://api.pinata.cloud/pinning/pinJSONToIPFS',
+				tokenMetadata,
+				{
+					headers: {
+						pinata_api_key: process.env.PINATA_API_KEY,
+						pinata_secret_api_key: process.env.PINATA_SECRET_KEY,
+					},
+				}
+			);
+	
+			const metadataURI = `https://gateway.pinata.cloud/ipfs/${metadataResponse.data.IpfsHash}`;
+			console.log(`Metadata uploaded to IPFS: ${metadataURI}`);
+	
+			// Step 3: Encode the transaction for the frontend to sign
+			const tx = factoryContract.methods.createToken(name, symbol, metadataURI, imageURI);
+			const gas = await tx.estimateGas({ from: user.walletAddress, value: requiredBalance });
+	
+			const encodedTx = {
+				from: user.walletAddress, // Ensure it matches the connected MetaMask account
+				to: factoryContract.options.address,
+				data: tx.encodeABI(),
+				value: requiredBalance.toString(),
+			};
+	
+			console.log(`📤 Encoded Transaction:`, encodedTx);
+	
+			return { encodedTx }; // Send to the frontend for signing
+		} catch (error) {
+			console.error('❌ Error during token creation:', error.message);
+			throw new Error('Token creation failed.');
+		}
+	},			
   },
 };
 

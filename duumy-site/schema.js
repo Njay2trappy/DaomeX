@@ -1,6 +1,7 @@
 const { gql } = require("apollo-server-express");
 
 const typeDefs = gql`
+  scalar Upload
   type User {
     username: String!
     bio: String
@@ -16,6 +17,7 @@ const typeDefs = gql`
   }
 
   type AuthResponse {
+    parentAddress: String!
     token: String!
     walletAddress: String!
     username: String!
@@ -72,6 +74,17 @@ const typeDefs = gql`
     balance: Float!
     percentageHold: Float!
   }
+  type TokenCreationResponse {
+    metadataURI: String!
+    encodedTx: EncodedTransaction!
+  }
+
+  type EncodedTransaction {
+    from: String!
+    to: String!
+    data: String!
+    value: String!
+}
 
   type Query {
     getUserDetails(username: String!): User
@@ -87,6 +100,16 @@ const typeDefs = gql`
   type Mutation {
     metaMaskAuth(parentAddress: String!, signature: String!): AuthResponse
     signUpUser(parentAddress: String!, username: String!, bio: String): AuthResponse
+    uploadImage(file: Upload!): String! # Returns the IPFS URI of the uploaded image
+    createToken(
+      name: String!,
+      symbol: String!,
+      description: String,
+      twitter: String,
+      telegram: String,
+      website: String,
+      imageURI: String!
+    ): TokenCreationResponse!
   }
 `;
 

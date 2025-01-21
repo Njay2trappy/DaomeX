@@ -33,6 +33,6 @@ const transactionSchema = new mongoose.Schema({
 });
 
 // ✅ Creating Transaction Model
-//const TransactionModel = transactionsConnection.model("Transaction", transactionSchema);
+const TransactionModel = transactionsConnection.model("Transaction", transactionSchema);
 
-module.exports = { transactionsConnection };
+module.exports = { transactionsConnection, TransactionModel };
