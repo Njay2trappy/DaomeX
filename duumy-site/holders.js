@@ -21,4 +21,4 @@ const holderSchema = new mongoose.Schema({
 
   const HolderModel = mongoose.model("Holder", holderSchema);
 
-  module.exports = HolderModel;
+  module.exports = { holdersConnection, HolderModel };

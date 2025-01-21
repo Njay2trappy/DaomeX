@@ -5,7 +5,7 @@ const bcrypt = require("bcryptjs");
 const { v4: uuidv4 } = require("uuid");
 const { UserModel, AuthModel, Token, Trade } = require("./db"); // ✅ Corrected impor
 const { transactionsConnection } = require("./transactions")
-const { HolderModel } = require("./holders"); // ✅ Ensure this is correctly imported from db.js
+const { holdersConnection } = require("./holders"); // ✅ Ensure this is correctly imported from db.js
 require("dotenv").config(); // Ensure dotenv is required at the top
 
 const SECRET_KEY = process.env.SECRET_KEY || "supersecretkey"; // Secure Secret Key
@@ -720,8 +720,27 @@ const resolvers = {
         username: userDetails.username,
         bio: userDetails.bio || "",
         walletAddress: userDetails.walletAddress,
+		parentAddress: userDetails.parentAddress,
       };
     },
+	getParentDetails: async (_, { parentAddress }, { user }) => {
+		if (!user) {
+		  throw new Error("❌ Authentication required. Please log in.");
+		}
+  
+		const userDetails = await UserModel.findOne({ parentAddress });
+  
+		if (!userDetails) {
+		  throw new Error("❌ User not found.");
+		}
+  
+		return {
+		  username: userDetails.username,
+		  bio: userDetails.bio || "",
+		  walletAddress: userDetails.walletAddress,
+		  parentAddress: userDetails.parentAddress,
+		};
+	  },
     getMintDetails: async (_, { mint }, { user }) => {
       // ✅ Ensure user is authenticated
       if (!user || !user.walletAddress) {
@@ -824,88 +843,113 @@ const resolvers = {
           throw new Error("Failed to fetch transactions.");
       }
     }, 
-    getHolders: async (_, { mintOrAddress, order = "asc", limit = 100 }, { user }) => {
-      if (!user || !user.walletAddress) {
-        throw new Error("❌ Authentication required. Please log in.");
-      }
-
-      try {
-        let contractAddress;
-
-        // Determine if input is a mint or contract address
-        if (mintOrAddress.endsWith("DAOME")) {
-          contractAddress = mintOrAddress.replace("DAOME", "");
-          console.log(`Mint provided, parsed contract address: ${contractAddress}`);
-        } else {
-          contractAddress = mintOrAddress;
-          console.log(`Contract address provided: ${contractAddress}`);
-        }
-
-        // Validate limit
-        if (isNaN(limit) || limit <= 0) {
-          throw new Error("Invalid limit value. Please provide a positive number.");
-        }
-
-        // Determine sorting order (Descending for Top holders, Ascending for Least holders)
-        const sortOrder = order.toLowerCase() === "desc" ? -1 : 1;
-
-        console.log(`🔑 Authorized User: ${user.walletAddress}`);
-        console.log(`📊 Fetching holders for contract: ${contractAddress}`);
-        console.log(`🔄 Order: ${order.toUpperCase()}, Limit: ${limit}`);
-
-        // Query the correct MongoDB collection dynamically based on contract address
-        const holdersCollection = holdersConnection.collection(contractAddress);
-
-        const holders = await holdersCollection
-          .find({})
-          .sort({ percentageHold: sortOrder }) // Sort based on percentage of holdings
-          .limit(parseInt(limit, 10))
-          .toArray();
-
-        console.log(`✅ Fetched ${holders.length} holders for ${contractAddress}`);
-
-        return holders.map(holder => ({
-          address: holder.address,
-          balance: holder.balance,
-          percentageHold: holder.percentageHold,
-        }));
-      } catch (error) {
-        console.error("❌ Error fetching holders:", error);
-        throw new Error("Failed to fetch holders.");
-      }
-    },    
+	getHolders: async (_, { mintOrAddress, order = "desc", limit = 100 }, { user }) => {
+		if (!user || !user.walletAddress) {
+		  throw new Error("❌ Authentication required. Please log in.");
+		}
+	  
+		try {
+		  let contractAddress;
+	  
+		  // ✅ Determine if input is a Mint or Contract Address
+		  if (mintOrAddress.endsWith("DAOME")) {
+			contractAddress = mintOrAddress.replace("DAOME", "");
+			console.log(`🔍 Mint detected, derived contract address: ${contractAddress}`);
+		  } else {
+			contractAddress = mintOrAddress;
+			console.log(`🔍 Contract address provided: ${contractAddress}`);
+		  }
+	  
+		  // ✅ Validate limit
+		  if (isNaN(limit) || limit <= 0) {
+			throw new Error("❌ Invalid limit value. Please provide a positive number.");
+		  }
+	  
+		  // ✅ Set Sorting Order (Descending = Top holders, Ascending = Least holders)
+		  const sortOrder = order.toLowerCase() === "desc" ? -1 : 1;
+	  
+		  console.log(`🔑 Authorized User: ${user.walletAddress}`);
+		  console.log(`📊 Fetching holders for contract: ${contractAddress}`);
+		  console.log(`🔄 Order: ${order.toUpperCase()}, Limit: ${limit}`);
+	  
+		  // ✅ Fetch holders dynamically from the correct contract collection
+		  const holdersCollection = holdersConnection.collection(contractAddress);
+	  
+		  const holders = await holdersCollection
+			.find({})
+			.sort({ percentageHold: sortOrder }) // Sort by percentage of total supply held
+			.limit(parseInt(limit, 10))
+			.toArray();
+	  
+		  console.log(`✅ Successfully fetched ${holders.length} holders for ${contractAddress}`);
+	  
+		  return holders.map(holder => ({
+			address: holder.address,
+			balance: holder.balance,
+			percentageHold: holder.percentageHold,
+		  }));
+		} catch (error) {
+		  console.error("❌ Error fetching holders:", error);
+		  throw new Error("Failed to fetch holders.");
+		}
+	},		  
   },
 
   Mutation: {
     // ✅ MetaMask Authentication & User Registration/Login
-    metaMaskAuth: async (_, { parentAddress, signature }) => {
-      console.log(`🔑 MetaMask authentication request from: ${parentAddress}`);
-
-      // Check if user already exists
-      const existingUser = await UserModel.findOne({ parentAddress });
-
-      if (!existingUser) {
-        throw new Error("❌ No account found. Please sign up first.");
-      }
-
-      // ✅ Generate & Return JWT Session Token
-      const token = jwt.sign(
-        {
-          walletAddress: existingUser.walletAddress,
-          parentAddress,
-        },
-        SECRET_KEY,
-        { expiresIn: "2h" }
-      );
-
-      console.log(`✅ User authenticated: ${existingUser.username}`);
-      return {
-        token,
-        walletAddress: existingUser.walletAddress,
-        username: existingUser.username,
-        bio: existingUser.bio,
-      };
-    },
+	metaMaskAuth: async (_, { signature, parentAddress }) => {
+		console.log(`🔑 Authentication request from MetaMask Parent Address: ${parentAddress}`);
+  
+		try {
+		  // ✅ Step 1: Construct the original message used for signing
+		  const message = `Login to DAOME with address ${parentAddress}`;
+		  console.log(`📜 Expected Signing Message: ${message}`);
+  
+		  // ✅ Step 2: Recover the address from the signature
+		  const recoveredAddress = web3.eth.accounts.recover(message, signature);
+		  console.log(`🔍 Recovered Address from Signature: ${recoveredAddress}`);
+  
+		  // ✅ Step 3: Ensure the recovered address matches the parent address
+		  if (recoveredAddress.toLowerCase() !== parentAddress.toLowerCase()) {
+			throw new Error("❌ Signature verification failed. Addresses do not match.");
+		  }
+		  console.log("✅ Signature verified successfully!");
+  
+		  // ✅ Step 4: Find user in the database by parentAddress
+		  const existingUser = await UserModel.findOne({ parentAddress });
+  
+		  if (!existingUser) {
+			console.log(`❌ User with parentAddress ${parentAddress} NOT FOUND.`);
+			throw new Error("User not found. Please sign up first.");
+		  }
+  
+		  console.log(`✅ User found: ${existingUser.username} (${existingUser.walletAddress})`);
+  
+		  // ✅ Step 5: Generate JWT Token
+		  const token = jwt.sign(
+			{
+			  walletAddress: existingUser.walletAddress,
+			  parentAddress,
+			},
+			SECRET_KEY,
+			{ expiresIn: "2h" }
+		  );
+  
+		  console.log("🎉 Session Token Generated:", token);
+  
+		  // ✅ Step 6: Return user details
+		  return {
+			token,
+			walletAddress: existingUser.walletAddress,
+			username: existingUser.username,
+			bio: existingUser.bio,
+		  };
+		} catch (error) {
+		  console.error("❌ Authentication failed:", error.message);
+		  throw new Error("Authentication failed.");
+		}
+	},
+	
 
     // ✅ User Sign-Up
     signUpUser: async (_, { parentAddress, username, bio }) => {

@@ -1,54 +1,52 @@
 body {
     font-family: Arial, sans-serif;
     text-align: center;
-    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+    background-color: #f5f5f5;
 }
 
 .container {
     width: 50%;
-    margin: auto;
-    background: white;
+    margin: 50px auto;
     padding: 20px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    background: white;
     border-radius: 10px;
-    margin-top: 50px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
 }
 
 button {
-    background-color: #007bff;
-    color: white;
+    display: block;
+    width: 200px;
+    margin: 10px auto;
     padding: 10px;
+    font-size: 16px;
     border: none;
     cursor: pointer;
-    font-size: 16px;
-    margin: 10px 0;
     border-radius: 5px;
 }
 
-button:hover {
-    background-color: #0056b3;
+#signUpMetaMask {
+    background-color: #4CAF50;
+    color: white;
 }
 
-input {
-    display: block;
-    width: 100%;
-    padding: 8px;
-    margin: 10px 0;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+#connectMetaMask {
+    background-color: #008CBA;
+    color: white;
 }
 
 #logoutMetaMask {
-    background-color: #dc3545;
+    background-color: #f44336;
+    color: white;
+    display: none;
 }
 
-#logoutMetaMask:hover {
-    background-color: #a71d2a;
-}
-
-#userDetails {
-    background: #e9f7ef;
-    padding: 15px;
-    border-radius: 8px;
+.user-details {
     margin-top: 20px;
+    display: none;
+}
+
+p {
+    font-size: 16px;
 }

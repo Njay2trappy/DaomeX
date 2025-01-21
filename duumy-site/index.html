@@ -3,39 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DAOME Authentication</title>
+    <title>DAOME - MetaMask Authentication</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.7.5/web3.min.js"></script>
 </head>
 <body>
-
     <div class="container">
         <h1>DAOME Authentication</h1>
-        
-        <!-- 🔹 MetaMask Connection -->
-        <button id="connectMetaMask">🔗 Connect with MetaMask</button>
-        <button id="logoutMetaMask" style="display: none;">🔌 Logout</button>
-
         <p id="status">Not connected</p>
 
-        <!-- 🔹 Sign Up Section (Only Shown for New Users) -->
-        <div id="signupSection" style="display: none;">
-            <h2>Complete Registration</h2>
-            <label for="username">Username:</label>
-            <input type="text" id="username" placeholder="Enter a username">
-            <label for="bio">Bio (optional):</label>
-            <input type="text" id="bio" placeholder="Tell us about yourself">
-            <button id="signUpButton">✅ Sign Up</button>
-        </div>
+        <!-- ✅ Sign Up Button (For New Users) -->
+        <button id="signUpMetaMask">Sign Up</button>
 
-        <!-- 🔹 User Details (Visible After Login) -->
-        <div id="userDetails" style="display: none;">
-            <h2>Welcome, <span id="usernameDisplay"></span>!</h2>
-            <p><strong>Bio:</strong> <span id="bioDisplay"></span></p>
-            <p><strong>Wallet Address:</strong> <span id="walletAddressDisplay"></span></p>
+        <!-- ✅ Connect MetaMask Button (For Existing Users) -->
+        <button id="connectMetaMask">Connect MetaMask</button>
+
+        <!-- ✅ Logout Button (Hidden by default) -->
+        <button id="logoutMetaMask" style="display: none;">Logout</button>
+
+        <div class="user-details">
+            <h2>User Details</h2>
+            <p><strong>Username:</strong> <span id="userName"></span></p>
+            <p><strong>Wallet Address:</strong> <span id="userWallet"></span></p>
+            <p><strong>Bio:</strong> <span id="userBio"></span></p>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/web3/dist/web3.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

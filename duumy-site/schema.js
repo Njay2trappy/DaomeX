@@ -5,6 +5,7 @@ const typeDefs = gql`
     username: String!
     bio: String
     walletAddress: String!
+    parentAddress: String
   }
 
   type Auth {
@@ -74,6 +75,7 @@ const typeDefs = gql`
 
   type Query {
     getUserDetails(username: String!): User
+    getParentDetails(parentAddress: String!): User
     getMintDetails(mint: String!): Token
     getMintValue(mint: String!): Trade
     getBalance(tokenAddress: ID!, userAddress: ID!): Float
