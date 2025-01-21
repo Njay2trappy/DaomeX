@@ -3,7 +3,7 @@ const Web3 = require("web3");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { v4: uuidv4 } = require("uuid");
-const { UserModel, AuthModel, Token, Trade } = require("./db"); // ✅ Corrected impor
+const { primaryConnection, UserModel, AuthModel, Token, Trade } = require("./db"); // ✅ Corrected impor
 const { transactionsConnection } = require("./transactions")
 const { holdersConnection } = require("./holders"); // ✅ Ensure this is correctly imported from db.js
 require("dotenv").config(); // Ensure dotenv is required at the top
@@ -892,7 +892,45 @@ const resolvers = {
 		  console.error("❌ Error fetching holders:", error);
 		  throw new Error("Failed to fetch holders.");
 		}
-	},		  
+	},
+	getTokens: async (_, { limit = 100 }, { user }) => {
+		if (!user || !user.walletAddress) {
+			throw new Error("❌ Authentication required. Please log in.");
+		}
+	
+		try {
+			console.log(`📡 Fetching tokens for user: ${user.walletAddress}`);
+	
+			// Validate limit
+			if (isNaN(limit) || limit <= 0) {
+				throw new Error("Invalid limit value. Please provide a positive number.");
+			}
+	
+			const tokens = await primaryConnection.collection('tokens')
+				.find({})
+				.sort({ createdAt: -1 }) // Sort in descending order (latest to oldest)
+				.limit(parseInt(limit, 10))
+				.toArray();
+	
+			console.log(`✅ Fetched ${tokens.length} tokens from MongoDB.`);
+	
+			return tokens.map(token => ({
+				mint: token.mint,
+				name: token.name,
+				symbol: token.symbol,
+				tokenPrice: token.tokenPrice,
+				virtualReserve: token.virtualReserve,
+				tokenReserve: token.tokenReserve,
+				marketCap: token.marketCap,
+				creator: token.creator,
+				metadataURI: token.metadataURI,
+				imageURI: token.imageURI,
+			}));
+		} catch (error) {
+			console.error('❌ Error fetching tokens from MongoDB:', error);
+			throw new Error('Failed to fetch tokens from the MongoDB database.');
+		}
+	},			  
   },
 
   Mutation: {
@@ -949,7 +987,6 @@ const resolvers = {
 		  throw new Error("Authentication failed.");
 		}
 	},
-	
 
     // ✅ User Sign-Up
     signUpUser: async (_, { parentAddress, username, bio }) => {
