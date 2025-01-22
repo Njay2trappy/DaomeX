@@ -1095,11 +1095,21 @@ const resolvers = {
 	
 		try {
 			console.log(`🔑 User Wallet Address: ${user.walletAddress}`);
-			console.log(`Creating token: ${name}, Symbol: ${symbol}`);
+			console.log(`📜 Creating token: ${name}, Symbol: ${symbol}`);
 	
+			// Step 1: Verify user balance
+			const userBalance = await web3.eth.getBalance(user.walletAddress);
+			const requiredBalance = web3.utils.toWei('100', 'ether');
+	
+			if (web3.utils.toBN(userBalance).lt(web3.utils.toBN(requiredBalance))) {
+				throw new Error('❌ Insufficient balance to create token.');
+			}
+	
+			console.log(`✅ User balance verified: ${web3.utils.fromWei(userBalance, 'ether')} ETH`);
+	
+			// Step 2: Create metadata and upload to IPFS
 			const totalSupply = 1_000_000_000;
 	
-			// Step 1: Create metadata and upload to IPFS
 			const tokenMetadata = {
 				name,
 				symbol,
@@ -1117,7 +1127,7 @@ const resolvers = {
 			};
 	
 			const metadataResponse = await axios.post(
-				"https://api.pinata.cloud/pinning/pinJSONToIPFS",
+				'https://api.pinata.cloud/pinning/pinJSONToIPFS',
 				tokenMetadata,
 				{
 					headers: {
@@ -1128,68 +1138,121 @@ const resolvers = {
 			);
 	
 			const metadataURI = `https://gateway.pinata.cloud/ipfs/${metadataResponse.data.IpfsHash}`;
-			console.log(`Metadata uploaded to IPFS: ${metadataURI}`);
+			console.log(`✅ Metadata uploaded to IPFS: ${metadataURI}`);
 	
-			// Step 2: Encode transaction for MetaMask
+			// Step 3: Prepare transaction
 			const tx = factoryContract.methods.createToken(name, symbol, metadataURI, imageURI);
-			const gas = await tx.estimateGas({ from: user.walletAddress, value: web3.utils.toWei("100", "ether") });
 	
+			// Estimate gas
+			console.log("Estimating gas...");
+			const gasLimit = 5000000;	
+			// Encode transaction for the frontend to sign
 			const encodedTx = {
 				from: user.walletAddress,
 				to: factoryContract.options.address,
 				data: tx.encodeABI(),
-				value: web3.utils.toWei("100", "ether"),
+				value: requiredBalance.toString(),
+				gas: gasLimit, // Use the adjusted gas limit
 			};
 	
 			console.log(`📤 Encoded Transaction:`, encodedTx);
 	
-			// Step 3: Return encodedTx to frontend for signing
-			return { encodedTx };
+			// Return encoded transaction for signing in the frontend
+			return {
+				encodedTx,
+			};
 		} catch (error) {
-			console.error("❌ Error during token creation:", error.message);
-			throw new Error("Token creation failed.");
+			console.error('❌ Error during token creation preparation:', error.message);
+			throw new Error('Token creation failed. Ensure you have sufficient balance and valid inputs.');
 		}
 	},
 	
-	confirmTokenCreation: async (_, { transactionHash }) => {
-		if (!transactionHash) {
-			console.error("❌ No transaction hash provided.");
-			throw new Error("Transaction hash is required.");
-		}
-	
-		console.log(`🔍 Received transaction hash: ${transactionHash}`);
-	
+	confirmTokenCreation: async (_, { transactionHash, name, symbol, description, twitter, telegram, website }) => {
 		try {
+			console.log(`📥 Received transactionHash: ${transactionHash}`);
+			
+			if (!transactionHash) {
+				throw new Error("❌ Transaction hash is required.");
+			}
+	
 			// Fetch the transaction receipt
 			const receipt = await web3.eth.getTransactionReceipt(transactionHash);
 	
-			console.log("📜 Transaction Receipt:", receipt);
-	
 			if (!receipt) {
-				console.error("❌ No receipt found for transaction hash:", transactionHash);
-				throw new Error("Transaction receipt not found.");
+				throw new Error("❌ Transaction receipt not found. Ensure the transaction has been mined.");
+			}	
+			// Decode logs
+			const decodedLogs = receipt.logs.map(log => {
+				try {
+					const eventABI = factoryABI.find(
+						event => event.type === "event" && web3.eth.abi.encodeEventSignature(event) === log.topics[0]
+					);
+	
+					if (!eventABI) {
+						return {
+							address: log.address,
+							topic: log.topics[0],
+							raw: log,
+						};
+					}
+	
+					// Decode the event
+					const decodedEvent = web3.eth.abi.decodeLog(
+						eventABI.inputs,
+						log.data,
+						log.topics.slice(1) // Skip the first topic (event signature)
+					);
+	
+					return {
+						address: log.address,
+						topic: log.topics[0],
+						event: eventABI.name,
+						args: decodedEvent,
+						raw: log,
+					};
+				} catch (error) {
+					console.warn("⚠️ Error decoding log:", error.message);
+					return {
+						address: log.address,
+						topic: log.topics[0],
+						raw: log,
+					};
+				}
+			});	
+			// Extract specific TokenCreated event details
+			const tokenCreatedEvent = decodedLogs.find(log => log.event === "TokenCreated");
+			if (!tokenCreatedEvent) {
+				throw new Error("TokenCreated event not found in transaction logs.");
 			}
 	
-			if (!receipt.events || !receipt.events.TokenCreated) {
-				console.error("❌ TokenCreated event not found in receipt:", receipt);
-				throw new Error("TokenCreated event not found in transaction receipt.");
-			}
+			const { token, bondingCurve, identifier, imageURI, metadataURI } = tokenCreatedEvent.args;
+			console.log(`✅ Token Created:
+			- Token Address: ${token}
+			- Bonding Curve Address: ${bondingCurve}
+			- Identifier (Mint): ${identifier}
+			- ImageURI: ${imageURI}
+			-MetadataURI: ${metadataURI}
+			`);
 	
-			// Extract details from the receipt
-			const { token, bondingCurve, identifier } = receipt.events.TokenCreated.returnValues;
-	
-			console.log(`✅ Token Created: ${token}, Bonding Curve: ${bondingCurve}, Mint: ${identifier}`);
-	
+			// Return full receipt, decoded logs, and TokenCreated details
 			return {
+				name,
+				symbol,
+				description,
+				twitter,
+				telegram,
+				website,
 				tokenAddress: token,
 				bondingCurveAddress: bondingCurve,
 				mint: identifier,
+				imageURI: imageURI,
+				metadataURI: metadataURI
 			};
 		} catch (error) {
-			console.error("❌ Error fetching transaction receipt:", error.message);
-			throw new Error("Failed to fetch transaction receipt.");
+			console.error("❌ Error decoding transaction receipt:", error.message);
+			throw new Error(`Failed to decode transaction receipt: ${error.message}`);
 		}
-	},				
+	},
   },
 };
 

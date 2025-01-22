@@ -83,11 +83,20 @@ const typeDefs = gql`
     to: String!
     data: String!
     value: String!
+    gas: String!
   }
   type ConfirmTokenCreationResponse {
+    name: String! # Name of the token
+    symbol: String! # Symbol of the token
+    description: String # Description of the token
+    twitter: String # Twitter handle of the project
+    telegram: String # Telegram link of the project
+    website: String # Website of the project
     tokenAddress: String!
     bondingCurveAddress: String!
     mint: String!
+    imageURI: String!
+    metadataURI: String!
   }
 
   type Query {
@@ -114,7 +123,15 @@ const typeDefs = gql`
       website: String,
       imageURI: String!
     ): TokenCreationResponse!
-    confirmTokenCreation(transactionHash: String!): ConfirmTokenCreationResponse
+    confirmTokenCreation(
+      transactionHash: String!
+      name: String!
+      symbol: String!
+      description: String
+      twitter: String
+      telegram: String
+      website: String
+    ): ConfirmTokenCreationResponse
   }
 `;
 

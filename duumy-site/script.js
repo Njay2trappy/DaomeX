@@ -13,6 +13,237 @@ document.addEventListener("DOMContentLoaded", () => {
     let uploadedImageURI = "";
 
     const GRAPHQL_ENDPOINT = "http://localhost:4000/graphql"; // Adjust as needed
+    const factoryABI =[
+        {
+            "inputs": [
+                {
+                    "internalType": "address",
+                    "name": "_feeToSetter",
+                    "type": "address"
+                }
+            ],
+            "stateMutability": "nonpayable",
+            "type": "constructor"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {
+                    "indexed": true,
+                    "internalType": "address",
+                    "name": "token",
+                    "type": "address"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "address",
+                    "name": "bondingCurve",
+                    "type": "address"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "string",
+                    "name": "metadataURI",
+                    "type": "string"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "string",
+                    "name": "imageURI",
+                    "type": "string"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "string",
+                    "name": "identifier",
+                    "type": "string"
+                }
+            ],
+            "name": "TokenCreated",
+            "type": "event"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "uint256",
+                    "name": "",
+                    "type": "uint256"
+                }
+            ],
+            "name": "allTokens",
+            "outputs": [
+                {
+                    "internalType": "address",
+                    "name": "",
+                    "type": "address"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "string",
+                    "name": "name",
+                    "type": "string"
+                },
+                {
+                    "internalType": "string",
+                    "name": "symbol",
+                    "type": "string"
+                },
+                {
+                    "internalType": "string",
+                    "name": "metadataURI",
+                    "type": "string"
+                },
+                {
+                    "internalType": "string",
+                    "name": "imageURI",
+                    "type": "string"
+                }
+            ],
+            "name": "createToken",
+            "outputs": [
+                {
+                    "internalType": "address",
+                    "name": "token",
+                    "type": "address"
+                },
+                {
+                    "internalType": "address",
+                    "name": "bondingCurve",
+                    "type": "address"
+                },
+                {
+                    "internalType": "string",
+                    "name": "identifier",
+                    "type": "string"
+                }
+            ],
+            "stateMutability": "payable",
+            "type": "function"
+        },
+        {
+            "inputs": [],
+            "name": "creationFee",
+            "outputs": [
+                {
+                    "internalType": "uint256",
+                    "name": "",
+                    "type": "uint256"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [],
+            "name": "feeTo",
+            "outputs": [
+                {
+                    "internalType": "address",
+                    "name": "",
+                    "type": "address"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [],
+            "name": "feeToSetter",
+            "outputs": [
+                {
+                    "internalType": "address",
+                    "name": "",
+                    "type": "address"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "address",
+                    "name": "token",
+                    "type": "address"
+                }
+            ],
+            "name": "getTokenDetails",
+            "outputs": [
+                {
+                    "internalType": "string",
+                    "name": "name",
+                    "type": "string"
+                },
+                {
+                    "internalType": "string",
+                    "name": "symbol",
+                    "type": "string"
+                },
+                {
+                    "internalType": "string",
+                    "name": "metadataURI",
+                    "type": "string"
+                },
+                {
+                    "internalType": "string",
+                    "name": "imageURI",
+                    "type": "string"
+                },
+                {
+                    "internalType": "address",
+                    "name": "bondingCurve",
+                    "type": "address"
+                },
+                {
+                    "internalType": "string",
+                    "name": "identifier",
+                    "type": "string"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "address",
+                    "name": "",
+                    "type": "address"
+                }
+            ],
+            "name": "tokenDetails",
+            "outputs": [
+                {
+                    "internalType": "string",
+                    "name": "metadataURI",
+                    "type": "string"
+                },
+                {
+                    "internalType": "string",
+                    "name": "imageURI",
+                    "type": "string"
+                },
+                {
+                    "internalType": "address",
+                    "name": "bondingCurve",
+                    "type": "address"
+                },
+                {
+                    "internalType": "string",
+                    "name": "identifier",
+                    "type": "string"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        }
+    ];
+    const factoryAddress = '0x1B2E0951c9EC788a5B2305fAfD97d1d1954a7d37';
 
     // ✅ Ensure buttons exist before adding event listeners
     if (connectButton) {
@@ -324,7 +555,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // 🔄 Function to create the token
     async function handleTokenCreation(event) {
         event.preventDefault();
-    
+
+        if (!window.ethereum) {
+            alert("❌ MetaMask is not installed. Please install it first.");
+            return;
+        }
+
         const formData = new FormData(createTokenForm);
         const name = formData.get("tokenName");
         const symbol = formData.get("tokenSymbol");
@@ -333,16 +569,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const telegram = formData.get("tokenTelegram");
         const website = formData.get("tokenWebsite");
         const imageURI = localStorage.getItem("imageURI");
-    
+
         if (!imageURI) {
             alert("❌ Please upload an image before creating a token.");
             return;
         }
-    
+
         try {
             console.log(`📜 Initiating token creation for: ${name} (${symbol})`);
-    
-            // Step 1: Request encoded transaction data from the backend
+
+            // Request the encoded transaction data from the backend
             const response = await fetch(GRAPHQL_ENDPOINT, {
                 method: "POST",
                 headers: {
@@ -357,69 +593,108 @@ document.addEventListener("DOMContentLoaded", () => {
                                 to
                                 data
                                 value
+                                gas
                             }
                         }
                     }`,
                     variables: { name, symbol, description, twitter, telegram, website, imageURI },
                 }),
             });
-    
+
             const result = await response.json();
             console.log("📜 Backend Response:", result);
-    
+
             if (result.errors) {
                 console.error("❌ Token creation failed:", result.errors);
                 alert("❌ Token creation failed. Check the console for details.");
                 return;
             }
-    
-            const encodedTx = result.data.createToken.encodedTx;
-    
-            // Step 2: Use MetaMask to sign and send the transaction
+
+            const { from, to, data, value, gas } = result.data.createToken.encodedTx;
+
+            // Sign and send the transaction via MetaMask
             const web3 = new Web3(window.ethereum);
-            const transactionReceipt = await web3.eth.sendTransaction(encodedTx);
-    
-            console.log(`🎉 Transaction signed and sent! Hash: ${transactionReceipt.transactionHash}`);
-            transactionHash = transactionReceipt.transactionHash;
-            console.log(`🎉 Transaction Hash: ${transactionHash}`);
-    
-            // Step 3: Fetch token details from the backend using transaction hash
-            const confirmResponse = await fetch(GRAPHQL_ENDPOINT, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-                },
-                body: JSON.stringify({
-                    query: `mutation ConfirmTokenCreation($transactionHash: String!) {
-                        confirmTokenCreation(transactionHash: $transactionHash) {
-                            tokenAddress
-                            bondingCurveAddress
-                            mint
-                        }
-                    }`,
-                    variables: { transactionHash: transactionReceipt.transactionHash },
-                }),
+            const receipt = await web3.eth.sendTransaction({
+                from,
+                to,
+                data,
+                value,
+                gas,
             });
-    
-            const confirmResult = await confirmResponse.json();
-            console.log("📜 Confirmation Response:", confirmResult);
-    
-            if (confirmResult.errors) {
-                console.error("❌ Token confirmation failed:", confirmResult.errors);
-                alert("❌ Token confirmation failed. Check the console for details.");
-                return;
+
+            console.log("🎉 Transaction successfully sent:", receipt);
+
+            // Decode the receipt using the factory contract's ABI
+            const factoryContract = new web3.eth.Contract(factoryABI, factoryAddress);
+            // Decode the logs using the ABI
+            const decodedLogs = receipt.logs.map(log => {
+                try {
+                    // Find the matching event in the ABI
+                    const eventABI = factoryABI.find(
+                        event => event.type === "event" && web3.eth.abi.encodeEventSignature(event) === log.topics[0]
+                    );
+
+                    if (!eventABI) {
+                        console.warn("⚠️ No matching event found for log topic:", log.topics[0]);
+                        return {
+                            address: log.address,
+                            topic: log.topics[0],
+                            raw: log,
+                        };
+                    }
+
+                    // Decode the log
+                    const decoded = web3.eth.abi.decodeLog(
+                        eventABI.inputs,
+                        log.data,
+                        log.topics.slice(1) // Skip the first topic (event signature)
+                    );
+
+                    return {
+                        address: log.address,
+                        topic: log.topics[0],
+                        event: eventABI.name,
+                        args: decoded,
+                        raw: log,
+                    };
+                } catch (error) {
+                    console.warn("⚠️ Error decoding log:", error.message);
+                    return {
+                        address: log.address,
+                        topic: log.topics[0],
+                        raw: log,
+                    };
+                }
+            });
+            console.log("✅ Raw Receipt:", receipt);
+            console.log("✅ Decoded Receipt:", decodedLogs);
+            alert(`✅ Token created successfully! Transaction Hash: ${receipt.transactionHash}`);
+            // Extract specific TokenCreated event details
+            const tokenCreatedEvent = decodedLogs.find(log => log.event === "TokenCreated");
+            if (!tokenCreatedEvent) {
+                throw new Error("TokenCreated event not found in transaction logs.");
             }
-    
-            const { tokenAddress, bondingCurveAddress, mint } = confirmResult.data.confirmTokenCreation;
-    
-            console.log(`✅ Token Created! Address: ${tokenAddress}, Bonding Curve: ${bondingCurveAddress}, Mint: ${mint}`);
-            alert(`✅ Token created successfully! Contract Address: ${tokenAddress}`);
+
+            const { token, bondingCurve, identifier } = tokenCreatedEvent.args;
+            console.log(`✅ Token Created:
+            - Token Address: ${token}
+            - Bonding Curve Address: ${bondingCurve}
+            - Identifier (Mint): ${identifier}
+            `);
+
+            return {
+                receipt,
+                decodedLogs,
+                tokenAddress: token,
+                bondingCurveAddress: bondingCurve,
+                mint: identifier,
+            };
         } catch (error) {
             console.error("❌ Error during token creation:", error);
-            alert("❌ Something went wrong. Check the console.");
+            alert("❌ Something went wrong. Check the console for details.");
         }
     }
+ 
     
 
 
@@ -467,6 +742,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const savedUsername = localStorage.getItem("username");
             statusElement.innerText = `Connected as: ${savedUsername}`;
         }
+    }
+    if (createTokenForm) {
+        createTokenForm.addEventListener("submit", handleTokenCreation);
     }
 });
 
