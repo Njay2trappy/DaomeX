@@ -47,140 +47,172 @@ contract ERC20 {
 
 contract BondingCurve {
     address public token;
-    uint public virtualReserve = 20000 ether;  // Virtual liquidity
+    uint public virtualReserve = 20000 ether;  
     uint public slope = 1e18;
-    uint public feePercent = 5;
-    address public feeTo = 0xa69871BaCe523e353a86117Fb336FCd5942b8cf6;
-    uint public initialPrice = 2e13; // 0.00002 AMB
+    uint public feePercent = 1; 
+    address public feeTo;
+    uint public initialPrice = 2e13; 
     uint public tokenPrice = initialPrice;
-    uint public tokenReserve = 1_000_000_000 ether;  // Total token supply in bonding curve
+    uint public tokenReserve = 1_000_000_000 ether;
 
-    event TokensPurchased(address indexed buyer, uint amount, uint cost);
-    event TokensBurned(address indexed seller, uint amount, uint refund);
+    event TokensPurchased(address indexed buyer, uint amount, uint totalCost);
+    event TokensBurned(address indexed seller, uint amount, uint netRefund);
+
+    constructor(address _feeTo) {
+        require(_feeTo != address(0), "BondingCurve: feeTo cannot be zero address");
+        feeTo = _feeTo;
+    }
 
     function initialize(address _token) external {
         require(token == address(0), "BondingCurve: Already initialized");
         token = _token;
     }
 
-    function updatePrice() internal {
-        tokenPrice = (virtualReserve * 1e18) / tokenReserve;
-    }
-
-    function getMarketCap() external view returns (uint) {
-        return virtualReserve;  // Market cap directly reflects the virtual reserve
-    }
-
-    function buyTokens() external payable {
-        uint fee = (msg.value * feePercent) / (100 - feePercent);
-        uint totalCost = msg.value;
-        uint netAmount = totalCost - fee;
-
+    function buyTokens(uint slippageTolerancePercent) external payable {
+        require(msg.value > 0, "BondingCurve: ETH required for purchase");
         require(tokenReserve > 0, "BondingCurve: No tokens in reserve");
 
-        // Calculate price with 2% premium
-        uint buyPrice = (tokenPrice * 102) / 100;  // 2% premium applied
+        uint fee = (msg.value * feePercent) / 100;
+        uint netAmount = msg.value - fee;
 
-        // Calculate the amount of tokens the user will receive
-        uint amount = (netAmount * 1e18) / buyPrice;
+        uint expectedVirtualReserve = virtualReserve + netAmount;
+        uint expectedPrice = (expectedVirtualReserve * 1e18) / tokenReserve;
 
-        require(amount > 0, "BondingCurve: Insufficient ETH to buy");
+        uint maxAcceptablePrice = (tokenPrice * (100 + slippageTolerancePercent)) / 100;
+        require(expectedPrice <= maxAcceptablePrice, "BondingCurve: Slippage too high");
+
+        uint amount = (netAmount * 1e18) / expectedPrice;
+        require(amount > 0, "BondingCurve: Insufficient ETH to buy tokens");
         require(tokenReserve >= amount, "BondingCurve: Insufficient token reserve");
 
-        // Calculate post-purchase state
-        uint expectedTokenReserve = tokenReserve - amount;
-        uint expectedVirtualReserve = virtualReserve + netAmount;
-        uint expectedPrice = (expectedVirtualReserve * 1e18) / expectedTokenReserve;
-
-        // Transfer purchased tokens to the user
         ERC20(token).transfer(msg.sender, amount);
 
-        // Transfer fee to the designated address
-        (bool success, ) = feeTo.call{value: fee, gas: 5000}("");
-        require(success, "Fee transfer failed");
-
-        emit TokensPurchased(msg.sender, amount, totalCost);
-
-        // Only update reserves after a successful transaction
         virtualReserve = expectedVirtualReserve;
-        tokenReserve = expectedTokenReserve;
-
-        // Set the token price directly to the buy price (reflecting the 2% premium)
+        tokenReserve -= amount;
         tokenPrice = expectedPrice;
+
+        (bool success, ) = feeTo.call{value: fee}("");
+        require(success, "BondingCurve: Fee transfer failed");
+
+        emit TokensPurchased(msg.sender, amount, msg.value);
     }
 
-
-    function sellTokens(uint amount) external {
-        require(amount > 0, "Amount must be greater than zero");
+    function sellTokens(uint amount, uint slippagePercent) external {
+        require(amount > 0, "BondingCurve: Amount must be greater than zero");
 
         uint userBalance = ERC20(token).balanceOf(msg.sender);
-        require(userBalance > 0, "No tokens to sell");
+        require(userBalance >= amount, "BondingCurve: Insufficient token balance");
 
-        uint sellPrice = (tokenPrice * 98) / 100;  // 2% penalty applied
+        uint sellPercentage = (amount * 1e18) / tokenReserve;
+        uint feePercentage = sellPercentage / 1e16;
+        if (feePercentage > 10) {
+            feePercentage = 10;
+        }
+
+        uint sellPrice = (tokenPrice * (100 - feePercentage)) / 100;
         uint refund = (amount * sellPrice) / 1e18;
+        require(refund > 0, "BondingCurve: Refund too small");
+        require(virtualReserve >= refund, "BondingCurve: Insufficient virtual reserve");
+
+        uint expectedTokenReserve = tokenReserve + amount;
+        uint expectedVirtualReserve = virtualReserve - refund;
+        uint expectedPrice = (expectedVirtualReserve * 1e18) / expectedTokenReserve;
+
+        uint maxSlippage = (tokenPrice * (100 - slippagePercent)) / 100;
+        require(expectedPrice >= maxSlippage, "BondingCurve: Slippage too high");
+
+        ERC20(token).transferFrom(msg.sender, address(this), amount);
+
         uint fee = (refund * feePercent) / 100;
         uint netRefund = refund - fee;
 
-        // Ensure refund doesn't exceed the virtual reserve
-        require(virtualReserve >= refund, "Insufficient virtual reserve");
+        (bool success, ) = payable(msg.sender).call{value: netRefund}("");
+        require(success, "BondingCurve: Refund transfer failed");
 
-        // Calculate post-sale state
-        uint expectedTokenReserve = tokenReserve + amount;
-        uint expectedVirtualReserve = virtualReserve - refund;  // Subtract full refund (not netRefund)
-        uint expectedPrice = (expectedVirtualReserve * 1e18) / expectedTokenReserve;
+        (success, ) = feeTo.call{value: fee}("");
+        require(success, "BondingCurve: Fee transfer failed");
 
-        // Transfer tokens from user to bonding curve reserve
-        ERC20(token).transferFrom(msg.sender, address(this), amount);
+        emit TokensBurned(msg.sender, amount, netRefund);
 
-        // Transfer net refund to the user
-        (bool success, ) = payable(msg.sender).call{value: netRefund, gas: 5000}("");
-        require(success, "Refund transfer failed");
-
-        // Transfer fee to the designated address
-        (success, ) = feeTo.call{value: fee, gas: 5000}("");
-        require(success, "Fee transfer failed");
-
-        emit TokensBurned(msg.sender, amount, refund);
-
-        // Update reserves and price only after a successful transaction
-        virtualReserve = expectedVirtualReserve;
         tokenReserve = expectedTokenReserve;
+        virtualReserve = expectedVirtualReserve;
         tokenPrice = expectedPrice;
     }
-
-
 }
 
 contract DAOMEFactory {
-    address public feeTo = 0xa69871BaCe523e353a86117Fb336FCd5942b8cf6;
+    address public feeTo = 0x65c4088F90D40FA1d1F7e286E45abc66dcEa01ff;
     address public feeToSetter;
-    uint public creationFee = 1 ether;
-    mapping(address => address) public tokenToBondingCurve;
+    uint public creationFee = 100 ether;
+
+    struct TokenDetails {
+        string metadataURI;
+        string imageURI;
+        address bondingCurve;
+        string identifier;
+    }
+
+    mapping(address => TokenDetails) public tokenDetails;
     address[] public allTokens;
 
-    event TokenCreated(address indexed token, address bondingCurve);
+    event TokenCreated(address indexed token, address bondingCurve, string metadataURI, string imageURI, string identifier);
 
     constructor(address _feeToSetter) {
         require(_feeToSetter != address(0), "FeeToSetter cannot be zero address");
         feeToSetter = _feeToSetter;
     }
 
-    function createToken(string memory name, string memory symbol) external payable returns (address token, address bondingCurve) {
-        require(msg.value >= creationFee, 'Factory: Insufficient creation fee');
+    function createToken(
+        string memory name,
+        string memory symbol,
+        string memory metadataURI,
+        string memory imageURI
+    ) external payable returns (address token, address bondingCurve, string memory identifier) {
+        require(msg.value >= creationFee, "Factory: Insufficient creation fee");
 
-        BondingCurve newBondingCurve = new BondingCurve();
+        BondingCurve newBondingCurve = new BondingCurve(feeTo);
         ERC20 newToken = new ERC20(name, symbol, address(newBondingCurve));
         token = address(newToken);
-        
-        newBondingCurve.initialize(token);
 
+        newBondingCurve.initialize(token);
         bondingCurve = address(newBondingCurve);
 
-        tokenToBondingCurve[token] = bondingCurve;
+        string memory appendedIdentifier = string(abi.encodePacked(toAsciiString(token), "DAOME"));
+
+        tokenDetails[token] = TokenDetails({
+            metadataURI: metadataURI,
+            imageURI: imageURI,
+            bondingCurve: bondingCurve,
+            identifier: appendedIdentifier
+        });
+
         allTokens.push(token);
 
-        emit TokenCreated(token, bondingCurve);
+        emit TokenCreated(token, bondingCurve, metadataURI, imageURI, appendedIdentifier);
 
-        payable(feeTo).transfer(msg.value);
+        (bool success, ) = feeTo.call{value: msg.value}("");
+        require(success, "Fee transfer failed");
+
+        return (token, bondingCurve, appendedIdentifier);
+    }
+
+    function toAsciiString(address x) internal pure returns (string memory) {
+        bytes memory s = new bytes(42);
+        s[0] = "0";
+        s[1] = "x";
+        for (uint i = 0; i < 20; i++) {
+            bytes1 b = bytes1(uint8(uint(uint160(x)) / (2**(8 * (19 - i)))));
+            bytes1 hi = bytes1(uint8(b) / 16);
+            bytes1 lo = bytes1(uint8(b) - 16 * uint8(hi));
+            s[2 * i + 2] = char(hi);
+            s[2 * i + 3] = char(lo);
+        }
+        return string(s);
+    }
+
+    function char(bytes1 b) internal pure returns (bytes1 c) {
+        if (uint8(b) < 10) return bytes1(uint8(b) + 0x30);
+        else return bytes1(uint8(b) + 0x57);
     }
 }
+

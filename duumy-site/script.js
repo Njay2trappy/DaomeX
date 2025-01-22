@@ -278,146 +278,170 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("Token creation failed. Check console for details.");
         }
     }*/
- // 🔄 Function to upload the image
- /*async function handleImageUpload(event) {
-    event.preventDefault();
+    // 🔄 Function to upload the image
+    /*async function handleImageUpload(event) {
+        event.preventDefault();
 
-    const formData = new FormData(imageUploadForm);
-    const imageFile = formData.get("tokenImage");
+        const formData = new FormData(imageUploadForm);
+        const imageFile = formData.get("tokenImage");
 
-    if (!imageFile || imageFile.size === 0) {
-        alert("❌ Please select an image to upload.");
-        return;
-    }
-
-    try {
-        console.log("📤 Uploading image...");
-        const uploadResponse = await fetch(GRAPHQL_ENDPOINT, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-            },
-            body: createMultipartBody(
-                `mutation UploadImage($file: Upload!) {
-                    uploadImage(file: $file)
-                }`,
-                { file: imageFile }
-            ),
-        });
-
-        const uploadResult = await uploadResponse.json();
-        if (uploadResult.errors) {
-            console.error("❌ Image upload failed:", uploadResult.errors);
-            alert("❌ Image upload failed.");
+        if (!imageFile || imageFile.size === 0) {
+            alert("❌ Please select an image to upload.");
             return;
         }
 
-        uploadedImageURI = uploadResult.data.uploadImage;
-        console.log(`🖼️ Image uploaded successfully. URI: ${uploadedImageURI}`);
-        imageStatus.innerText = `Image uploaded successfully! URI: ${uploadedImageURI}`;
-    } catch (error) {
-        console.error("❌ Error during image upload:", error);
-        alert("❌ Something went wrong during image upload. Check console.");
-    }
-}*/
+        try {
+            console.log("📤 Uploading image...");
+            const uploadResponse = await fetch(GRAPHQL_ENDPOINT, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+                },
+                body: createMultipartBody(
+                    `mutation UploadImage($file: Upload!) {
+                        uploadImage(file: $file)
+                    }`,
+                    { file: imageFile }
+                ),
+            });
 
-// 🔄 Function to create the token
-async function handleTokenCreation(event) {
-    event.preventDefault();
+            const uploadResult = await uploadResponse.json();
+            if (uploadResult.errors) {
+                console.error("❌ Image upload failed:", uploadResult.errors);
+                alert("❌ Image upload failed.");
+                return;
+            }
 
-    const formData = new FormData(createTokenForm);
-    const name = formData.get("tokenName");
-    const symbol = formData.get("tokenSymbol");
-    const description = formData.get("tokenDescription");
-    const twitter = formData.get("tokenTwitter");
-    const telegram = formData.get("tokenTelegram");
-    const website = formData.get("tokenWebsite");
-    const imageURI = localStorage.getItem("imageURI");
+            uploadedImageURI = uploadResult.data.uploadImage;
+            console.log(`🖼️ Image uploaded successfully. URI: ${uploadedImageURI}`);
+            imageStatus.innerText = `Image uploaded successfully! URI: ${uploadedImageURI}`;
+        } catch (error) {
+            console.error("❌ Error during image upload:", error);
+            alert("❌ Something went wrong during image upload. Check console.");
+        }
+    }*/
 
-    if (!imageURI) {
-        alert("❌ Please upload an image before creating a token.");
-        return;
-    }
-
-    try {
-        console.log(`📜 Initiating token creation for: ${name} (${symbol})`);
-
-        // Step 1: Request transaction data from the backend
-        const response = await fetch(GRAPHQL_ENDPOINT, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-            },
-            body: JSON.stringify({
-                query: `mutation CreateToken($name: String!, $symbol: String!, $description: String, $twitter: String, $telegram: String, $website: String, $imageURI: String!) {
-                    createToken(name: $name, symbol: $symbol, description: $description, twitter: $twitter, telegram: $telegram, website: $website, imageURI: $imageURI) {
-                        encodedTx {
-                            from
-                            to
-                            data
-                            value
+    // 🔄 Function to create the token
+    async function handleTokenCreation(event) {
+        event.preventDefault();
+    
+        const formData = new FormData(createTokenForm);
+        const name = formData.get("tokenName");
+        const symbol = formData.get("tokenSymbol");
+        const description = formData.get("tokenDescription");
+        const twitter = formData.get("tokenTwitter");
+        const telegram = formData.get("tokenTelegram");
+        const website = formData.get("tokenWebsite");
+        const imageURI = localStorage.getItem("imageURI");
+    
+        if (!imageURI) {
+            alert("❌ Please upload an image before creating a token.");
+            return;
+        }
+    
+        try {
+            console.log(`📜 Initiating token creation for: ${name} (${symbol})`);
+    
+            // Step 1: Request encoded transaction data from the backend
+            const response = await fetch(GRAPHQL_ENDPOINT, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+                },
+                body: JSON.stringify({
+                    query: `mutation CreateToken($name: String!, $symbol: String!, $description: String, $twitter: String, $telegram: String, $website: String, $imageURI: String!) {
+                        createToken(name: $name, symbol: $symbol, description: $description, twitter: $twitter, telegram: $telegram, website: $website, imageURI: $imageURI) {
+                            encodedTx {
+                                from
+                                to
+                                data
+                                value
+                            }
                         }
-                    }
-                }`,
-                variables: { name, symbol, description, twitter, telegram, website, imageURI },
-            }),
+                    }`,
+                    variables: { name, symbol, description, twitter, telegram, website, imageURI },
+                }),
+            });
+    
+            const result = await response.json();
+            console.log("📜 Backend Response:", result);
+    
+            if (result.errors) {
+                console.error("❌ Token creation failed:", result.errors);
+                alert("❌ Token creation failed. Check the console for details.");
+                return;
+            }
+    
+            const encodedTx = result.data.createToken.encodedTx;
+    
+            // Step 2: Use MetaMask to sign and send the transaction
+            const web3 = new Web3(window.ethereum);
+            const transactionReceipt = await web3.eth.sendTransaction(encodedTx);
+    
+            console.log(`🎉 Transaction signed and sent! Hash: ${transactionReceipt.transactionHash}`);
+            transactionHash = transactionReceipt.transactionHash;
+            console.log(`🎉 Transaction Hash: ${transactionHash}`);
+    
+            // Step 3: Fetch token details from the backend using transaction hash
+            const confirmResponse = await fetch(GRAPHQL_ENDPOINT, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+                },
+                body: JSON.stringify({
+                    query: `mutation ConfirmTokenCreation($transactionHash: String!) {
+                        confirmTokenCreation(transactionHash: $transactionHash) {
+                            tokenAddress
+                            bondingCurveAddress
+                            mint
+                        }
+                    }`,
+                    variables: { transactionHash: transactionReceipt.transactionHash },
+                }),
+            });
+    
+            const confirmResult = await confirmResponse.json();
+            console.log("📜 Confirmation Response:", confirmResult);
+    
+            if (confirmResult.errors) {
+                console.error("❌ Token confirmation failed:", confirmResult.errors);
+                alert("❌ Token confirmation failed. Check the console for details.");
+                return;
+            }
+    
+            const { tokenAddress, bondingCurveAddress, mint } = confirmResult.data.confirmTokenCreation;
+    
+            console.log(`✅ Token Created! Address: ${tokenAddress}, Bonding Curve: ${bondingCurveAddress}, Mint: ${mint}`);
+            alert(`✅ Token created successfully! Contract Address: ${tokenAddress}`);
+        } catch (error) {
+            console.error("❌ Error during token creation:", error);
+            alert("❌ Something went wrong. Check the console.");
+        }
+    }
+    
+
+
+
+
+    // 🔄 Helper function to create a multipart request body
+    function createMultipartBody(query, variables) {
+        const map = {};
+        const form = new FormData();
+
+        Object.keys(variables).forEach((key, index) => {
+            if (variables[key] instanceof File) {
+                map[index] = [`variables.${key}`];
+                form.append(index, variables[key]);
+            }
         });
 
-        const result = await response.json();
-        console.log("📜 Backend Response (Debug):", result);
+        form.append("operations", JSON.stringify({ query, variables }));
+        form.append("map", JSON.stringify(map));
 
-        // Handle errors from backend
-        if (result.errors) {
-            console.error("❌ Backend returned errors:", result.errors);
-            alert("❌ Token creation failed. Check the console for details.");
-            return;
-        }
-
-        const encodedTx = result.data?.createToken?.encodedTx;
-
-        if (!encodedTx) {
-            console.error("❌ encodedTx is not defined in the backend response:", result);
-            alert("❌ Failed to retrieve transaction details. Check the console for more information.");
-            return;
-        }
-
-        // Step 2: Use MetaMask to sign and send the transaction
-        if (!window.ethereum) {
-            alert("❌ MetaMask is not installed. Please install it first.");
-            return;
-        }
-
-        const web3 = new Web3(window.ethereum);
-
-        const receipt = await web3.eth.sendTransaction(encodedTx);
-        console.log(`🎉 Transaction signed and sent! Hash: ${receipt.transactionHash}`);
-        alert(`✅ Token created successfully! Transaction Hash: ${receipt.transactionHash}`);
-    } catch (error) {
-        console.error("❌ Error during token creation:", error);
-        alert("❌ Something went wrong. Check the console.");
-    }
-}
-
-
-
-// 🔄 Helper function to create a multipart request body
-function createMultipartBody(query, variables) {
-    const map = {};
-    const form = new FormData();
-
-    Object.keys(variables).forEach((key, index) => {
-        if (variables[key] instanceof File) {
-            map[index] = [`variables.${key}`];
-            form.append(index, variables[key]);
-        }
-    });
-
-    form.append("operations", JSON.stringify({ query, variables }));
-    form.append("map", JSON.stringify(map));
-
-    return form;
-}    
+        return form;
+    }    
     function logoutMetaMask() {
         console.log("🔌 Logging out...");
         localStorage.removeItem("userToken");

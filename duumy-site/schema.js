@@ -75,8 +75,7 @@ const typeDefs = gql`
     percentageHold: Float!
   }
   type TokenCreationResponse {
-    metadataURI: String!
-    encodedTx: EncodedTransaction!
+    encodedTx: EncodedTransaction!            # The unique mint identifier for the token
   }
 
   type EncodedTransaction {
@@ -84,7 +83,12 @@ const typeDefs = gql`
     to: String!
     data: String!
     value: String!
-}
+  }
+  type ConfirmTokenCreationResponse {
+    tokenAddress: String!
+    bondingCurveAddress: String!
+    mint: String!
+  }
 
   type Query {
     getUserDetails(username: String!): User
@@ -110,6 +114,7 @@ const typeDefs = gql`
       website: String,
       imageURI: String!
     ): TokenCreationResponse!
+    confirmTokenCreation(transactionHash: String!): ConfirmTokenCreationResponse
   }
 `;
 

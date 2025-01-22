@@ -1097,17 +1097,9 @@ const resolvers = {
 			console.log(`🔑 User Wallet Address: ${user.walletAddress}`);
 			console.log(`Creating token: ${name}, Symbol: ${symbol}`);
 	
-			// Step 1: Verify user balance
-			const userBalance = await web3.eth.getBalance(user.walletAddress);
-			const requiredBalance = web3.utils.toWei('100', 'ether');
-	
-			if (web3.utils.toBN(userBalance).lt(web3.utils.toBN(requiredBalance))) {
-				throw new Error('Insufficient balance to create token');
-			}
-	
-			// Step 2: Create metadata and upload to IPFS
 			const totalSupply = 1_000_000_000;
 	
+			// Step 1: Create metadata and upload to IPFS
 			const tokenMetadata = {
 				name,
 				symbol,
@@ -1125,7 +1117,7 @@ const resolvers = {
 			};
 	
 			const metadataResponse = await axios.post(
-				'https://api.pinata.cloud/pinning/pinJSONToIPFS',
+				"https://api.pinata.cloud/pinning/pinJSONToIPFS",
 				tokenMetadata,
 				{
 					headers: {
@@ -1138,25 +1130,66 @@ const resolvers = {
 			const metadataURI = `https://gateway.pinata.cloud/ipfs/${metadataResponse.data.IpfsHash}`;
 			console.log(`Metadata uploaded to IPFS: ${metadataURI}`);
 	
-			// Step 3: Encode the transaction for the frontend to sign
+			// Step 2: Encode transaction for MetaMask
 			const tx = factoryContract.methods.createToken(name, symbol, metadataURI, imageURI);
-			const gas = await tx.estimateGas({ from: user.walletAddress, value: requiredBalance });
+			const gas = await tx.estimateGas({ from: user.walletAddress, value: web3.utils.toWei("100", "ether") });
 	
 			const encodedTx = {
-				from: user.walletAddress, // Ensure it matches the connected MetaMask account
+				from: user.walletAddress,
 				to: factoryContract.options.address,
 				data: tx.encodeABI(),
-				value: requiredBalance.toString(),
+				value: web3.utils.toWei("100", "ether"),
 			};
 	
 			console.log(`📤 Encoded Transaction:`, encodedTx);
 	
-			return { encodedTx }; // Send to the frontend for signing
+			// Step 3: Return encodedTx to frontend for signing
+			return { encodedTx };
 		} catch (error) {
-			console.error('❌ Error during token creation:', error.message);
-			throw new Error('Token creation failed.');
+			console.error("❌ Error during token creation:", error.message);
+			throw new Error("Token creation failed.");
 		}
-	},			
+	},
+	
+	confirmTokenCreation: async (_, { transactionHash }) => {
+		if (!transactionHash) {
+			console.error("❌ No transaction hash provided.");
+			throw new Error("Transaction hash is required.");
+		}
+	
+		console.log(`🔍 Received transaction hash: ${transactionHash}`);
+	
+		try {
+			// Fetch the transaction receipt
+			const receipt = await web3.eth.getTransactionReceipt(transactionHash);
+	
+			console.log("📜 Transaction Receipt:", receipt);
+	
+			if (!receipt) {
+				console.error("❌ No receipt found for transaction hash:", transactionHash);
+				throw new Error("Transaction receipt not found.");
+			}
+	
+			if (!receipt.events || !receipt.events.TokenCreated) {
+				console.error("❌ TokenCreated event not found in receipt:", receipt);
+				throw new Error("TokenCreated event not found in transaction receipt.");
+			}
+	
+			// Extract details from the receipt
+			const { token, bondingCurve, identifier } = receipt.events.TokenCreated.returnValues;
+	
+			console.log(`✅ Token Created: ${token}, Bonding Curve: ${bondingCurve}, Mint: ${identifier}`);
+	
+			return {
+				tokenAddress: token,
+				bondingCurveAddress: bondingCurve,
+				mint: identifier,
+			};
+		} catch (error) {
+			console.error("❌ Error fetching transaction receipt:", error.message);
+			throw new Error("Failed to fetch transaction receipt.");
+		}
+	},				
   },
 };
 
