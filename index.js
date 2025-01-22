@@ -1325,7 +1325,7 @@ const resolvers = {
 				}
 		
 				// Step 2: Upload image to IPFS
-				const imagePath = path.join(__dirname, 'car.png');
+				const imagePath = path.join(__dirname, 'daome.png');
 				if (!fs.existsSync(imagePath)) {
 					throw new Error('Image file not found: car.png');
 				}
