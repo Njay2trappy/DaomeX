@@ -479,17 +479,19 @@ document.addEventListener("DOMContentLoaded", () => {
                     Authorization: `Bearer ${localStorage.getItem("userToken")}`,
                 },
                 body: JSON.stringify({
-                    query: `mutation BuyTokens($MintOrAddress: String!, $amount: String!, $slippageTolerance: String!) {
-                        buyTokens(MintOrAddress: $MintOrAddress, amount: $amount, slippageTolerance: $slippageTolerance) {
-                            encodedTx {
-                            from
-                            to
-                            data
-                            value
-                            gas
-                            
+                    query: `
+                        mutation BuyTokens($MintOrAddress: String!, $amount: String!, $slippageTolerance: String!) {
+                            buyTokens(MintOrAddress: $MintOrAddress, amount: $amount, slippageTolerance: $slippageTolerance) {
+                                encodedTx {
+                                    from
+                                    to
+                                    data
+                                    value
+                                    gas
+                                }
+                            }
                         }
-                    }`,
+                    `,
                     variables: { MintOrAddress, amount, slippageTolerance },
                 }),
             });

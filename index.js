@@ -1790,6 +1790,15 @@ const resolvers = {
 						await transactionCollection.insertOne(transactionData);
 						console.log(`Transaction saved in collection: ${tokenAddress}`);
 
+						// Fetch token details from the database
+						const tokenDetails = await primaryConnection.collection("tokens").findOne({
+							mint: { $regex: new RegExp(`^${mint}$`, "i") } // Case-insensitive search using the mint field directly
+						});
+
+						if (!tokenDetails) {
+							throw new Error(`❌ Token details not found for mint: ${mint}`);
+						}
+						const { name, symbol, imageURI, metadataURI } = tokenDetails; // Extract name, symbol, imageURI
 						console.log(`📥 Updating user collection for wallet: ${buyer}`);
 						const userCollection = UsersConnection.collection(buyer);
 						// Check if user already exists in their collection
