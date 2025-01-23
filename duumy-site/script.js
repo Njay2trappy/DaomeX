@@ -520,16 +520,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: JSON.stringify({
                     query: `mutation ConfirmTokenPurchase($transactionHash: String!) {
                         confirmTokenPurchase(transactionHash: $transactionHash) {
-                            mint
                             quantity
-                            AmountPaid
+                            amountPaid
                             timestamp
                             buyer
                             transactionHash
                             bondingCurve
                         }
                     }`,
-                    variables: { transactionHash: receipt.transactionHash, mint: MintOrAddress, amount },
+                    variables: { transactionHash: receipt.transactionHash },
                 }),
             });
     

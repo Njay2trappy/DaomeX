@@ -1656,7 +1656,8 @@ const resolvers = {
 				}
 		
 				const quantity = parseFloat(web3.utils.fromWei(event.returnValues.amount || '0', 'ether'));
-				const totalCost = parseFloat(web3.utils.fromWei(event.returnValues.totalcost || '0', 'ether'));
+				const amountPaid = parseFloat(web3.utils.fromWei(event.returnValues.totalcost || '0', 'ether'));
+				const totalCost =  parseFloat(amount);
 		
 				// Prepare response to send immediately
 				const response = {
@@ -1664,7 +1665,7 @@ const resolvers = {
 					tokenAddress,
 					quantity,
 					totalCost,
-					amountPaid: parseFloat(amount),
+					amountPaid,
 					timestamp,
 					buyer,
 					transactionHash,
