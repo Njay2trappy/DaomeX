@@ -1527,12 +1527,12 @@ const resolvers = {
 					marketCap: parseFloat(web3.utils.fromWei(marketCap, 'ether')),
 					usdMarketCap,
 					usdPrice,
-					TXNS: 1,
-					BUYS: 1,
-					SELLS: 1,
-					Volume: 1,
-					BuyVolume: 1,
-					SellVolume: 1,
+					TXNS: 0,
+					BUYS: 0,
+					SELLS: 0,
+					Volume: 0,
+					BuyVolume: 0,
+					SellVolume: 0,
 					Age: creationTime,
 				};
 		
