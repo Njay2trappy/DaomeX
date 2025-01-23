@@ -1656,12 +1656,14 @@ const resolvers = {
 				}
 		
 				const quantity = parseFloat(web3.utils.fromWei(event.returnValues.amount || '0', 'ether'));
-				const amountPaid = parseFloat(web3.utils.fromWei(event.returnValues.totalcost || '0', 'ether'));
-				const totalCost =  parseFloat(amount);
+				const totalCost = parseFloat(web3.utils.fromWei(event.returnValues.totalcost || '0', 'ether'));
+				const amountPaid =  parseFloat(amount);
+				const mint = tokenAddress + "DAOME";
 		
 				// Prepare response to send immediately
 				const response = {
 					token: tokenName,
+					mint,
 					tokenAddress,
 					quantity,
 					totalCost,
