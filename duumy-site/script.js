@@ -555,12 +555,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // 🔄 Function to create the token
     async function handleTokenCreation(event) {
         event.preventDefault();
-
+    
         if (!window.ethereum) {
             alert("❌ MetaMask is not installed. Please install it first.");
             return;
         }
-
+    
         const formData = new FormData(createTokenForm);
         const name = formData.get("tokenName");
         const symbol = formData.get("tokenSymbol");
@@ -569,16 +569,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const telegram = formData.get("tokenTelegram");
         const website = formData.get("tokenWebsite");
         const imageURI = localStorage.getItem("imageURI");
-
+    
         if (!imageURI) {
             alert("❌ Please upload an image before creating a token.");
             return;
         }
-
+    
         try {
             console.log(`📜 Initiating token creation for: ${name} (${symbol})`);
-
-            // Request the encoded transaction data from the backend
+    
+            // Step 1: Request the encoded transaction data from the backend
             const response = await fetch(GRAPHQL_ENDPOINT, {
                 method: "POST",
                 headers: {
@@ -600,19 +600,19 @@ document.addEventListener("DOMContentLoaded", () => {
                     variables: { name, symbol, description, twitter, telegram, website, imageURI },
                 }),
             });
-
+    
             const result = await response.json();
             console.log("📜 Backend Response:", result);
-
+    
             if (result.errors) {
                 console.error("❌ Token creation failed:", result.errors);
                 alert("❌ Token creation failed. Check the console for details.");
                 return;
             }
-
+    
             const { from, to, data, value, gas } = result.data.createToken.encodedTx;
-
-            // Sign and send the transaction via MetaMask
+    
+            // Step 2: Sign and send the transaction via MetaMask
             const web3 = new Web3(window.ethereum);
             const receipt = await web3.eth.sendTransaction({
                 from,
@@ -621,74 +621,65 @@ document.addEventListener("DOMContentLoaded", () => {
                 value,
                 gas,
             });
-
+    
             console.log("🎉 Transaction successfully sent:", receipt);
-
-            // Decode the receipt using the factory contract's ABI
-            const factoryContract = new web3.eth.Contract(factoryABI, factoryAddress);
-            // Decode the logs using the ABI
-            const decodedLogs = receipt.logs.map(log => {
-                try {
-                    // Find the matching event in the ABI
-                    const eventABI = factoryABI.find(
-                        event => event.type === "event" && web3.eth.abi.encodeEventSignature(event) === log.topics[0]
-                    );
-
-                    if (!eventABI) {
-                        console.warn("⚠️ No matching event found for log topic:", log.topics[0]);
-                        return {
-                            address: log.address,
-                            topic: log.topics[0],
-                            raw: log,
-                        };
-                    }
-
-                    // Decode the log
-                    const decoded = web3.eth.abi.decodeLog(
-                        eventABI.inputs,
-                        log.data,
-                        log.topics.slice(1) // Skip the first topic (event signature)
-                    );
-
-                    return {
-                        address: log.address,
-                        topic: log.topics[0],
-                        event: eventABI.name,
-                        args: decoded,
-                        raw: log,
-                    };
-                } catch (error) {
-                    console.warn("⚠️ Error decoding log:", error.message);
-                    return {
-                        address: log.address,
-                        topic: log.topics[0],
-                        raw: log,
-                    };
-                }
-            });
-            console.log("✅ Raw Receipt:", receipt);
-            console.log("✅ Decoded Receipt:", decodedLogs);
             alert(`✅ Token created successfully! Transaction Hash: ${receipt.transactionHash}`);
-            // Extract specific TokenCreated event details
-            const tokenCreatedEvent = decodedLogs.find(log => log.event === "TokenCreated");
-            if (!tokenCreatedEvent) {
-                throw new Error("TokenCreated event not found in transaction logs.");
+    
+            // Step 3: Confirm token creation on backend (mutation for database update)
+            console.log("📤 Sending transaction confirmation to backend...");
+            const confirmResponse = await fetch(GRAPHQL_ENDPOINT, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+                },
+                body: JSON.stringify({
+                    query: `mutation ConfirmTokenCreation($transactionHash: String!, $name: String!, $symbol: String!, $description: String, $twitter: String, $telegram: String, $website: String) {
+                        confirmTokenCreation(transactionHash: $transactionHash, name: $name, symbol: $symbol, description: $description, twitter: $twitter, telegram: $telegram, website: $website) {
+                            mint
+                            name
+                            symbol
+                            totalSupply
+                            balanceOf
+                            bondingCurve
+                            creator
+                            transactionHash
+                            description
+                            imageURI
+                            metadataURI
+                            twitter
+                            telegram
+                            website
+                            pool
+                            usdMarketCap
+                            usdPrice
+                            fdv
+                            mint_authority
+                            freeze_authority
+                            liquidity_burned
+                            migrated
+                            burn_curve
+                            tokenPrice
+                            virtualReserve
+                            tokenReserve
+                            marketCap
+                        }
+                    }`,
+                    variables: { transactionHash: receipt.transactionHash, name, symbol, description, twitter, telegram, website },
+                }),
+            });
+    
+            const confirmResult = await confirmResponse.json();
+            console.log("✅ Token Confirmation Response:", confirmResult);
+    
+            if (confirmResult.errors) {
+                console.error("❌ Error confirming token creation:", confirmResult.errors);
+                alert("❌ Token confirmation failed. Check the console for details.");
+                return;
             }
-
-            const { token, bondingCurve, identifier } = tokenCreatedEvent.args;
-            console.log(`✅ Token Created:
-            - Token Address: ${token}
-            - Bonding Curve Address: ${bondingCurve}
-            - Identifier (Mint): ${identifier}
-            `);
-
-            return {
-                receipt,
-                decodedLogs,
-                tokenAddress: token,
-                bondingCurveAddress: bondingCurve,
-                mint: identifier,
-            };
+    
+            alert(`✅ Token creation confirmed! Address: ${confirmResult.data.confirmTokenCreation.tokenAddress}`);
+    
         } catch (error) {
             console.error("❌ Error during token creation:", error);
             alert("❌ Something went wrong. Check the console for details.");

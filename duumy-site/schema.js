@@ -25,7 +25,6 @@ const typeDefs = gql`
   }
   type Token {
     mint: String!
-    address: String!
     name: String!
     symbol: String!
     totalSupply: Float!
@@ -131,7 +130,7 @@ const typeDefs = gql`
       twitter: String
       telegram: String
       website: String
-    ): ConfirmTokenCreationResponse
+    ): Token
   }
 `;
 

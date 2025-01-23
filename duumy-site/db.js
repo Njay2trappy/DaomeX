@@ -35,7 +35,6 @@ const AuthSchema = new mongoose.Schema({
 // ✅ Define Token Schema
 const tokenSchema = new mongoose.Schema({
     mint: { type: String, unique: true, required: true },
-    address: { type: String, unique: true, required: true },
     name: { type: String, required: true },
     symbol: { type: String, required: true },
     totalSupply: { type: Number, required: true },
@@ -58,22 +57,36 @@ const tokenSchema = new mongoose.Schema({
     liquidity_burned: { type: Boolean, default: true },
     migrated: { type: Boolean, default: false },
     burn_curve: { type: String, default: null },
+    Liquidity: { type: Number, default: 0 },
     tokenPrice: { type: Number },
     virtualReserve: { type: Number },
     tokenReserve: { type: Number },
     marketCap: { type: Number },
+    creationTime: { type: Date, default: Date.now },
 });
 
 const tradeSchema = new mongoose.Schema({
 	mint: { type: String, unique: true, required: true },
-	contractAddress: { type: String, unique: true, required: true },
+    name: { type: String, required: true },
+    symbol: { type: String, required: true },
+    imageURI: { type: String },
 	tokenPrice: { type: Number, required: true },
+    usdPrice: { type: Number, default: 0, required: true },
 	virtualReserve: { type: Number, required: true },
+    Liquidity: { type: Number, default: 0 },
 	tokenReserve: { type: Number, required: true },
 	marketCap: { type: Number, required: true },
 	usdMarketCap: { type: Number, default: 0, required: true },
-	usdPrice: { type: Number, default: 0, required: true },
+    TXNS: { type: Number, default: 0, required: true },
+    BUYS: { type: Number, default: 0, required: true },
+    SELLS: { type: Number, default: 0, required: true },
+    Volume: { type: Number, default: 0, required: true },
+    BuyVolume: { type: Number, default: 0, required: true },
+    SellVolume: { type: Number, default: 0, required: true },
+    Age: { type: Date, default: Date.now },
 });
+
+
 
 // ✅ Create Models
 const UserModel = primaryConnection.model("User", UserSchema, "users");

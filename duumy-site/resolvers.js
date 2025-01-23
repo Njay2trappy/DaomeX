@@ -707,6 +707,28 @@ const ERC20ABI = [
 ];
 const factoryAddress = '0x1B2E0951c9EC788a5B2305fAfD97d1d1954a7d37';
 const factoryContract = new web3.eth.Contract(factoryABI, factoryAddress);
+async function fetchAmbPrice() {
+	try {
+		console.log('Fetching AMB price...');
+		const response = await axios.get('https://backend.x3na.com/v1/price');
+		console.log('API raw response:', response.data);
+	
+		// Directly parse the response since it's the raw price
+		const price = parseFloat(response.data);
+	
+		if (!isNaN(price) && price > 0) {
+		  console.log(`Valid AMB price fetched: ${price}`);
+		  return price;
+		} else {
+		  console.error('Invalid AMB price value:', response.data);
+		  return 0; // Default to 0 if the price is invalid
+		}
+	  } catch (error) {
+		console.error('Error fetching AMB price:', error.message);
+		return 0; // Default to 0 in case of error
+	  }
+	
+}
 
 const resolvers = {
   Upload: GraphQLUpload, // Define Upload scalar
@@ -1171,6 +1193,12 @@ const resolvers = {
 		try {
 			console.log(`📥 Received transactionHash: ${transactionHash}`);
 			
+			// Check if token with this transaction hash already exists
+			const existingToken = await Token.findOne({ transactionHash });
+			if (existingToken) {
+				console.log("❌ Token already created for this transaction hash.");
+				return { message: "Token already created", tokenAddress: existingToken.address };
+			}
 			if (!transactionHash) {
 				throw new Error("❌ Transaction hash is required.");
 			}
@@ -1180,7 +1208,8 @@ const resolvers = {
 	
 			if (!receipt) {
 				throw new Error("❌ Transaction receipt not found. Ensure the transaction has been mined.");
-			}	
+			}
+			const creator = receipt.from;	
 			// Decode logs
 			const decodedLogs = receipt.logs.map(log => {
 				try {
@@ -1232,22 +1261,134 @@ const resolvers = {
 			- Identifier (Mint): ${identifier}
 			- ImageURI: ${imageURI}
 			-MetadataURI: ${metadataURI}
+			- Creator: ${creator}
 			`);
+
+
+			/*const tokenAddress = receipt.events.TokenCreated.returnValues.token;
+			const bondingCurveAddress = receipt.events.TokenCreated.returnValues.bondingCurve;
+			const mint = receipt.events.TokenCreated.returnValues.identifier;*/
+
+			// Fetch AMB price
+			const ambPrice = await fetchAmbPrice();
+			if (ambPrice === 0) {
+				console.warn("AMB price not available. Proceeding with USD Market Cap as 0.");
+			}
 	
-			// Return full receipt, decoded logs, and TokenCreated details
-			return {
+			// Initialize bondingCurveContract
+			const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurve);
+			const totalSupply = 1_000_000_000;
+	
+			// Fetch bonding curve details
+			const tokenPrice = await bondingCurveContract.methods.tokenPrice().call();
+			const virtualReserve = await bondingCurveContract.methods.virtualReserve().call();
+			const tokenReserve = await bondingCurveContract.methods.tokenReserve().call();
+			const marketCap = await bondingCurveContract.methods.getMarketCap().call();
+	
+			const numericMarketCap = parseFloat(web3.utils.fromWei(marketCap, 'ether'));
+			const numericvirtualReserve = parseFloat(web3.utils.fromWei(virtualReserve, 'ether'));
+			const numericUsdprice = parseFloat(web3.utils.fromWei(tokenPrice, 'ether'));
+			const usdMarketCap = isNaN(numericMarketCap) || isNaN(ambPrice) ? 0 : numericMarketCap * ambPrice;
+			const usdPrice = isNaN(numericUsdprice) || isNaN(ambPrice) ? 0 : numericUsdprice * ambPrice;
+			const Liquidity = isNaN(numericvirtualReserve) || isNaN(ambPrice) ? 0 : numericvirtualReserve * ambPrice;
+
+			// Get the current timestamp
+			const creationTime = new Date();
+	
+			// Save to MongoDB
+			const tokenData = {
+				mint: identifier,
 				name,
 				symbol,
+				totalSupply,
+				balanceOf: totalSupply,
+				bondingCurve,
+				creator: creator,
+				transactionHash,
 				description,
+				imageURI: tokenCreatedEvent.args.imageURI,
+				metadataURI: tokenCreatedEvent.args.metadataURI,
 				twitter,
 				telegram,
 				website,
-				tokenAddress: token,
-				bondingCurveAddress: bondingCurve,
-				mint: identifier,
-				imageURI: imageURI,
-				metadataURI: metadataURI
+				pool: "DAOMEFactory",
+				usdMarketCap,
+				usdPrice,
+				fdv: usdMarketCap,
+				mint_authority: false,
+				freeze_authority: false,
+				liquidity_burned: true,
+				migrated: false,
+				burn_curve: null,
+				Liquidity,
+				tokenPrice: parseFloat(web3.utils.fromWei(tokenPrice, 'ether')),
+				virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve, 'ether')),
+				tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
+				marketCap: parseFloat(web3.utils.fromWei(marketCap, 'ether')),
+				creationTime,
 			};
+	
+			const tradeData = {
+				mint: identifier,
+				name,
+				symbol,
+				imageURI: tokenCreatedEvent.args.imageURI,
+				tokenPrice: parseFloat(web3.utils.fromWei(tokenPrice, 'ether')),
+				usdPrice,
+				virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve, 'ether')),
+				Liquidity,
+				tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
+				marketCap: parseFloat(web3.utils.fromWei(marketCap, 'ether')),
+				usdMarketCap,
+				TXNS: 0,
+				BUYS: 0,
+				SELLS: 0,
+				Volume: 0,
+				BuyVolume: 0,
+				SellVolume: 0,
+				Age: creationTime,
+			};
+	
+			await Token.create(tokenData);
+			await Trade.create(tradeData);
+	
+			console.log('✅ Token and trade details saved in MongoDB');
+	
+			// Create a collection for holders in the holders database
+			await holdersConnection.createCollection(token);
+			console.log(`✅ Holders collection created for token: ${token}`);
+
+			// Return response
+			return {
+				mint: identifier,
+				name,
+				symbol,
+				totalSupply,
+				balanceOf: totalSupply,
+				bondingCurve,
+				creator,
+				transactionHash,
+				description,
+				imageURI,
+				metadataURI,
+				twitter,
+				telegram,
+				website,
+				pool: "DAOMEFactory",
+				usdMarketCap,
+				usdPrice,
+				fdv: usdMarketCap,
+				mint_authority: false,
+				freeze_authority: false,
+				liquidity_burned: true,
+				migrated: false,
+				burn_curve: null,
+				tokenPrice: parseFloat(web3.utils.fromWei(tokenPrice, 'ether')),
+				virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve, 'ether')),
+				tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
+				marketCap: parseFloat(web3.utils.fromWei(marketCap, 'ether')),
+			};
+	 
 		} catch (error) {
 			console.error("❌ Error decoding transaction receipt:", error.message);
 			throw new Error(`Failed to decode transaction receipt: ${error.message}`);
