@@ -1770,7 +1770,7 @@ const resolvers = {
 						const transactionData = {
 							type: "Buy",
 							quantity,
-							AmountPaid : totalCost,
+							amountPaid: parseFloat(amount),
 							tokenPrice: numericTokenPrice,
 							virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
 							tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),

@@ -9,241 +9,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const imageStatus = document.getElementById("imageStatus");
     const createTokenForm = document.getElementById("createTokenForm");
     const createTokenStatus = document.getElementById("createTokenStatus");
+    const buyTokenForm = document.getElementById("buyTokenForm");
 
     let uploadedImageURI = "";
 
     const GRAPHQL_ENDPOINT = "http://localhost:4000/graphql"; // Adjust as needed
-    const factoryABI =[
-        {
-            "inputs": [
-                {
-                    "internalType": "address",
-                    "name": "_feeToSetter",
-                    "type": "address"
-                }
-            ],
-            "stateMutability": "nonpayable",
-            "type": "constructor"
-        },
-        {
-            "anonymous": false,
-            "inputs": [
-                {
-                    "indexed": true,
-                    "internalType": "address",
-                    "name": "token",
-                    "type": "address"
-                },
-                {
-                    "indexed": false,
-                    "internalType": "address",
-                    "name": "bondingCurve",
-                    "type": "address"
-                },
-                {
-                    "indexed": false,
-                    "internalType": "string",
-                    "name": "metadataURI",
-                    "type": "string"
-                },
-                {
-                    "indexed": false,
-                    "internalType": "string",
-                    "name": "imageURI",
-                    "type": "string"
-                },
-                {
-                    "indexed": false,
-                    "internalType": "string",
-                    "name": "identifier",
-                    "type": "string"
-                }
-            ],
-            "name": "TokenCreated",
-            "type": "event"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "uint256",
-                    "name": "",
-                    "type": "uint256"
-                }
-            ],
-            "name": "allTokens",
-            "outputs": [
-                {
-                    "internalType": "address",
-                    "name": "",
-                    "type": "address"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "string",
-                    "name": "name",
-                    "type": "string"
-                },
-                {
-                    "internalType": "string",
-                    "name": "symbol",
-                    "type": "string"
-                },
-                {
-                    "internalType": "string",
-                    "name": "metadataURI",
-                    "type": "string"
-                },
-                {
-                    "internalType": "string",
-                    "name": "imageURI",
-                    "type": "string"
-                }
-            ],
-            "name": "createToken",
-            "outputs": [
-                {
-                    "internalType": "address",
-                    "name": "token",
-                    "type": "address"
-                },
-                {
-                    "internalType": "address",
-                    "name": "bondingCurve",
-                    "type": "address"
-                },
-                {
-                    "internalType": "string",
-                    "name": "identifier",
-                    "type": "string"
-                }
-            ],
-            "stateMutability": "payable",
-            "type": "function"
-        },
-        {
-            "inputs": [],
-            "name": "creationFee",
-            "outputs": [
-                {
-                    "internalType": "uint256",
-                    "name": "",
-                    "type": "uint256"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-        },
-        {
-            "inputs": [],
-            "name": "feeTo",
-            "outputs": [
-                {
-                    "internalType": "address",
-                    "name": "",
-                    "type": "address"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-        },
-        {
-            "inputs": [],
-            "name": "feeToSetter",
-            "outputs": [
-                {
-                    "internalType": "address",
-                    "name": "",
-                    "type": "address"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "address",
-                    "name": "token",
-                    "type": "address"
-                }
-            ],
-            "name": "getTokenDetails",
-            "outputs": [
-                {
-                    "internalType": "string",
-                    "name": "name",
-                    "type": "string"
-                },
-                {
-                    "internalType": "string",
-                    "name": "symbol",
-                    "type": "string"
-                },
-                {
-                    "internalType": "string",
-                    "name": "metadataURI",
-                    "type": "string"
-                },
-                {
-                    "internalType": "string",
-                    "name": "imageURI",
-                    "type": "string"
-                },
-                {
-                    "internalType": "address",
-                    "name": "bondingCurve",
-                    "type": "address"
-                },
-                {
-                    "internalType": "string",
-                    "name": "identifier",
-                    "type": "string"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "address",
-                    "name": "",
-                    "type": "address"
-                }
-            ],
-            "name": "tokenDetails",
-            "outputs": [
-                {
-                    "internalType": "string",
-                    "name": "metadataURI",
-                    "type": "string"
-                },
-                {
-                    "internalType": "string",
-                    "name": "imageURI",
-                    "type": "string"
-                },
-                {
-                    "internalType": "address",
-                    "name": "bondingCurve",
-                    "type": "address"
-                },
-                {
-                    "internalType": "string",
-                    "name": "identifier",
-                    "type": "string"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-        }
-    ];
-    const factoryAddress = '0x1B2E0951c9EC788a5B2305fAfD97d1d1954a7d37';
 
     // ✅ Ensure buttons exist before adding event listeners
     if (connectButton) {
@@ -701,6 +471,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             console.log(`📜 Preparing to buy tokens: ${MintOrAddress} with amount ${amount}`);
     
+            // Step 1: Request encoded transaction data from the backend
             const response = await fetch(GRAPHQL_ENDPOINT, {
                 method: "POST",
                 headers: {
@@ -711,12 +482,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     query: `mutation BuyTokens($MintOrAddress: String!, $amount: String!, $slippageTolerance: String!) {
                         buyTokens(MintOrAddress: $MintOrAddress, amount: $amount, slippageTolerance: $slippageTolerance) {
                             encodedTx {
-                                from
-                                to
-                                data
-                                value
-                                gas
-                            }
+                            from
+                            to
+                            data
+                            value
+                            gas
+                            
                         }
                     }`,
                     variables: { MintOrAddress, amount, slippageTolerance },
@@ -724,17 +495,57 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     
             const result = await response.json();
-            const { from, to, data, value, gas } = result.data.buyTokens.encodedTx;
+    
+            if (result.errors) {
+                console.error("❌ Error fetching encoded transaction:", result.errors);
+                alert("❌ Token purchase failed. Check console for details.");
+                return;
+            }
     
             const web3 = new Web3(window.ethereum);
-            const receipt = await web3.eth.sendTransaction({ from, to, data, value, gas });
+            const receipt = await web3.eth.sendTransaction;
     
             console.log("✅ Transaction Successful:", receipt);
-            
-            // Call confirmTokenPurchase mutation
-            confirmTokenPurchase(receipt.transactionHash, MintOrAddress, amount);
+            alert(`✅ Transaction Successful! Hash: ${receipt.transactionHash}`);
+    
+            // Step 2: Immediately confirm the token purchase in the backend
+            console.log(`📥 Confirming token purchase for hash: ${receipt.transactionHash}`);
+    
+            const confirmResponse = await fetch(GRAPHQL_ENDPOINT, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+                },
+                body: JSON.stringify({
+                    query: `mutation ConfirmTokenPurchase($transactionHash: String!) {
+                        confirmTokenPurchase(transactionHash: $transactionHash) {
+                            mint
+                            quantity
+                            AmountPaid
+                            timestamp
+                            buyer
+                            transactionHash
+                            bondingCurve
+                        }
+                    }`,
+                    variables: { transactionHash: receipt.transactionHash, mint: MintOrAddress, amount },
+                }),
+            });
+    
+            const confirmResult = await confirmResponse.json();
+    
+            if (confirmResult.errors) {
+                console.error("❌ Error confirming token purchase:", confirmResult.errors);
+                alert("❌ Token purchase confirmation failed. Check console.");
+                return;
+            }
+    
+            console.log("✅ Token purchase confirmed:", confirmResult.data.confirmTokenPurchase);
+            alert(`✅ Token purchase confirmed! Token Address: ${confirmResult.data.confirmTokenPurchase.tokenAddress}`);
         } catch (error) {
-            console.error("❌ Error buying tokens:", error);
+            console.error("❌ Error during token purchase:", error);
+            alert("❌ An error occurred. Check console for details.");
         }
     }
     // 🔄 Helper function to create a multipart request body
@@ -782,6 +593,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (createTokenForm) {
         createTokenForm.addEventListener("submit", handleTokenCreation);
+    }
+    if (buyTokenForm) {
+        buyTokenForm.addEventListener("submit", handleBuyTokens);
     }
 });
 

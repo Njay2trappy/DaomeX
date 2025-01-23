@@ -89,16 +89,18 @@ const typeDefs = gql`
   type TokenCreationResponse {
     encodedTx: EncodedTransaction!            # The unique mint identifier for the token
   }
+  type TokenBuyResponse {
+    encodedTx: EncodedTransaction!            # The unique mint identifier for the token
+  }
   type TokenPurchase {
 		mint: String!
 		quantity: Float!
-		AmountPaid: Float!
+		amountPaid: Float!
 		timestamp: String!
 		buyer: String!
 		transactionHash: String!
 		bondingCurve: String!
   }
-
   type EncodedTransaction {
     from: String!
     to: String!
@@ -153,7 +155,7 @@ const typeDefs = gql`
       telegram: String
       website: String
     ): Token
-    buyTokens(MintOrAddress: String!, amount: String!, slippageTolerance: String!): EncodedTransaction!
+    buyTokens(MintOrAddress: String!, amount: String!, slippageTolerance: String!): TokenBuyResponse!
     confirmTokenPurchase(transactionHash: String!): TokenPurchase!
   }
 `;

@@ -1522,7 +1522,7 @@ const resolvers = {
 			const { buyer, amount, totalCost} = TokensPurchasedEvent.args;
 
 			const quantity = amount/ 1000000000000000000;
-			const AmountPaid = totalCost/ 1000000000000000000;
+			const amountPaid = totalCost/ 1000000000000000000;
 
 			const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurve);
 			const tokenAddress = await bondingCurveContract.methods.token().call();
@@ -1544,7 +1544,7 @@ const resolvers = {
 			const response = {
 				mint,
 				quantity,
-				AmountPaid,
+				amountPaid,
 				timestamp,
 				buyer,
 				transactionHash,
@@ -1652,7 +1652,7 @@ const resolvers = {
 					const transactionData = {
 						type: "Buy",
 						quantity,
-						AmountPaid,
+						amountPaid,
 						tokenPrice: numericTokenPrice,
 						virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
 						tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),

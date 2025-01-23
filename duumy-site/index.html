@@ -38,33 +38,51 @@
         <p id="imageStatus"></p>
     </div>
 
-        <!-- ✅ Create Token Form -->
-        <div class="token-creation">
-            <h2>Create Token</h2>
-            <form id="createTokenForm">
-                <label for="tokenName">Token Name:</label>
-                <input type="text" id="tokenName" name="tokenName" required />
-            
-                <label for="tokenSymbol">Token Symbol:</label>
-                <input type="text" id="tokenSymbol" name="tokenSymbol" required />
-            
-                <label for="tokenDescription">Token Description:</label>
-                <textarea id="tokenDescription" name="tokenDescription"></textarea>
-            
-                <label for="tokenTwitter">Twitter:</label>
-                <input type="url" id="tokenTwitter" name="tokenTwitter" />
-            
-                <label for="tokenTelegram">Telegram:</label>
-                <input type="url" id="tokenTelegram" name="tokenTelegram" />
-            
-                <label for="tokenWebsite">Website:</label>
-                <input type="url" id="tokenWebsite" name="tokenWebsite" />
-            
-                <button type="submit">Create Token</button>
-            </form>            
-            <p id="createTokenStatus"></p>
-        </div>
+    <!-- ✅ Create Token Form -->
+    <div class="token-creation">
+        <h2>Create Token</h2>
+        <form id="createTokenForm">
+            <label for="tokenName">Token Name:</label>
+            <input type="text" id="tokenName" name="tokenName" required />
+        
+            <label for="tokenSymbol">Token Symbol:</label>
+            <input type="text" id="tokenSymbol" name="tokenSymbol" required />
+        
+            <label for="tokenDescription">Token Description:</label>
+            <textarea id="tokenDescription" name="tokenDescription"></textarea>
+        
+            <label for="tokenTwitter">Twitter:</label>
+            <input type="url" id="tokenTwitter" name="tokenTwitter" />
+        
+            <label for="tokenTelegram">Telegram:</label>
+            <input type="url" id="tokenTelegram" name="tokenTelegram" />
+        
+            <label for="tokenWebsite">Website:</label>
+            <input type="url" id="tokenWebsite" name="tokenWebsite" />
+        
+            <button type="submit">Create Token</button>
+        </form>            
+        <p id="createTokenStatus"></p>
     </div>
+    <!-- ✅ Buy Token Form -->
+    <div class="buy-token">
+        <h2>Buy Tokens</h2>
+        <form id="buyTokenForm">
+            <label for="MintOrAddress">Token Mint or Address:</label>
+            <input type="text" id="MintOrAddress" name="MintOrAddress" required />
+
+            <label for="amount">Amount (in ETH):</label>
+            <input type="text" id="amount" name="amount" required />
+
+            <label for="slippageTolerance">Slippage Tolerance (%):</label>
+            <input type="text" id="slippageTolerance" name="slippageTolerance" required />
+
+            <button type="submit">Buy Tokens</button>
+        </form>
+        <p id="buyTokenStatus"></p>
+    </div>
+</div>
+
 
     <script src="script.js"></script>
 </body>
