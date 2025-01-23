@@ -1689,7 +1689,7 @@ const resolvers = {
 						const usdMarketCap = isNaN(numericMarketCap) || isNaN(ambPrice) ? 0 : numericMarketCap * ambPrice;
 						const usdPrice = isNaN(numericTokenPrice) || isNaN(ambPrice) ? 0 : numericTokenPrice * ambPrice;
 						const Liquidity = isNaN(numericvirtualReserve) || isNaN(ambPrice) ? 0 : numericvirtualReserve * ambPrice;
-						const volumebuy = AmountPaid * ambPrice
+						const volumebuy = amountPaid * ambPrice
 
 						// Update token and trades in the primary database
 						await primaryConnection.collection('tokens').updateOne(

@@ -1525,7 +1525,7 @@ const resolvers = {
 			const amountPaid = totalCost/ 1000000000000000000;
 
 			const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurve);
-			const tokenAddress = await bondingCurveContract.methods.token().call();
+			const tokenAddress = (await bondingCurveContract.methods.token().call()).toLowerCase();
 			if (!tokenAddress) {
 				throw new Error('Token address not found in bonding curve contract.');
 			}
@@ -1536,7 +1536,7 @@ const resolvers = {
 			- Mint: ${mint}
 			- Bonding Curve Address: ${bondingCurve}
 			- Token received: ${quantity}
-			- Token paid: ${AmountPaid}
+			- Token paid: ${amountPaid}
 			- Age: ${timestamp}
 			- buyer: ${buyer}
 			`);
@@ -1569,7 +1569,7 @@ const resolvers = {
 					const usdMarketCap = isNaN(numericMarketCap) || isNaN(ambPrice) ? 0 : numericMarketCap * ambPrice;
 					const usdPrice = isNaN(numericTokenPrice) || isNaN(ambPrice) ? 0 : numericTokenPrice * ambPrice;
 					const Liquidity = isNaN(numericvirtualReserve) || isNaN(ambPrice) ? 0 : numericvirtualReserve * ambPrice;
-					const volumebuy = AmountPaid * ambPrice
+					const volumebuy = amountPaid * ambPrice
 
 					console.log("✅ Buy Volume:", volumebuy);
 
