@@ -702,27 +702,33 @@ const factoryContract = new web3.eth.Contract(factoryABI, factoryAddress);
 const MONGO_URI = 'mongodb+srv://UnixMachine:PAFWGjwnAzCOvZqi@daomex.2z8bx.mongodb.net/?retryWrites=true&w=majority&appName=Daomex';
 const MONGO_URI_TRANSACTIONS = 'mongodb+srv://UnixMachine:PAFWGjwnAzCOvZqi@daomex.2z8bx.mongodb.net/transactions?retryWrites=true&w=majority&appName=Daomex';
 const MONGO_URI_HOLDERS = 'mongodb+srv://UnixMachine:PAFWGjwnAzCOvZqi@daomex.2z8bx.mongodb.net/holders?retryWrites=true&w=majority&appName=Daomex';
+const MONGO_URI_USERS = 'mongodb+srv://UnixMachine:PAFWGjwnAzCOvZqi@daomex.2z8bx.mongodb.net/Users?retryWrites=true&w=majority&appName=Daomex';
 
 // Primary database connection
 mongoose.connect(MONGO_URI);
 const primaryConnection = mongoose.connection;
-
 primaryConnection.once('open', () => {
     console.log('Connected to the primary MongoDB database!');
 });
 
 // Transactions database connection
 const transactionsConnection = mongoose.createConnection(MONGO_URI_TRANSACTIONS);
-
 transactionsConnection.once('open', () => {
     console.log('Connected to the transactions MongoDB database!');
 });
 
 // Holders database connection
 const holdersConnection = mongoose.createConnection(MONGO_URI_HOLDERS);
-
 holdersConnection.once('open', () => {
     console.log('Connected to the holders MongoDB database!');
+});
+
+const UsersConnection = mongoose.createConnection(MONGO_URI_USERS);
+UsersConnection.once('open', () => {
+    console.log('Connected to the holders MongoDB database!');
+});
+UsersConnection.on("error", (err) => {
+    console.error("❌ MongoDB Connection Error:", err);
 });
 
 // Schema for storing API keys
@@ -735,47 +741,92 @@ const apiKeySchema = new mongoose.Schema({
 // Create the model
 const ApiKey = mongoose.model('ApiKey', apiKeySchema);
 const tokenSchema = new mongoose.Schema({
-	mint: { type: String, unique: true, required: true }, // Unique identifier
-	address: { type: String, unique: true, required: true }, // Contract address
-	name: { type: String, required: true },
-	symbol: { type: String, required: true },
-	totalSupply: { type: Number, required: true },
-	balanceOf: { type: Number, required: true },
-	bondingCurve: { type: String, required: true },
-	creator: { type: String, required: true },
-	transactionHash: { type: String, required: true },
-	description: { type: String },
-	imageURI: { type: String },
-	metadataURI: { type: String },
-	twitter: { type: String },
-	telegram: { type: String },
-	website: { type: String },
-	pool: { type: String, default: "DAOMEFactory" },
-	usdMarketCap: { type: Number, default: 0 },
-	usdPrice: { type: Number, default: 0 },
-	fdv: { type: Number, default: 0 },
-	mint_authority: { type: Boolean, default: false },
-	freeze_authority: { type: Boolean, default: false },
-	liquidity_burned: { type: Boolean, default: true },
-	migrated: { type: Boolean, default: false },
-	burn_curve: { type: String, default: null },
-	tokenPrice: { type: Number },
-	virtualReserve: { type: Number },
-	tokenReserve: { type: Number },
-	marketCap: { type: Number },
-}); 
+    mint: { type: String, unique: true, required: true },
+    name: { type: String, required: true },
+    symbol: { type: String, required: true },
+    totalSupply: { type: Number, required: true },
+    balanceOf: { type: Number, required: true },
+    bondingCurve: { type: String, required: true },
+    creator: { type: String, required: true },
+    transactionHash: { type: String, required: true },
+    description: { type: String },
+    imageURI: { type: String },
+    metadataURI: { type: String },
+    twitter: { type: String },
+    telegram: { type: String },
+    website: { type: String },
+    pool: { type: String, default: "DAOMEFactory" },
+    usdMarketCap: { type: Number, default: 0 },
+    usdPrice: { type: Number, default: 0 },
+    fdv: { type: Number, default: 0 },
+    mint_authority: { type: Boolean, default: false },
+    freeze_authority: { type: Boolean, default: false },
+    liquidity_burned: { type: Boolean, default: true },
+    migrated: { type: Boolean, default: false },
+    burn_curve: { type: String, default: null },
+    Liquidity: { type: Number, default: 0 },
+    tokenPrice: { type: Number },
+    virtualReserve: { type: Number },
+    tokenReserve: { type: Number },
+    marketCap: { type: Number },
+    creationTime: { type: Date, default: Date.now },
+});
 const Token = mongoose.model('Token', tokenSchema);
 const tradeSchema = new mongoose.Schema({
 	mint: { type: String, unique: true, required: true },
-	contractAddress: { type: String, unique: true, required: true },
+    name: { type: String, required: true },
+    symbol: { type: String, required: true },
+    imageURI: { type: String },
 	tokenPrice: { type: Number, required: true },
+    usdPrice: { type: Number, default: 0, required: true },
 	virtualReserve: { type: Number, required: true },
+    Liquidity: { type: Number, default: 0 },
 	tokenReserve: { type: Number, required: true },
 	marketCap: { type: Number, required: true },
 	usdMarketCap: { type: Number, default: 0, required: true },
-	usdPrice: { type: Number, default: 0, required: true },
+    TXNS: { type: Number, default: 0, required: true },
+    BUYS: { type: Number, default: 0, required: true },
+    SELLS: { type: Number, default: 0, required: true },
+    Volume: { type: Number, default: 0, required: true },
+    BuyVolume: { type: Number, default: 0, required: true },
+    SellVolume: { type: Number, default: 0, required: true },
+    Age: { type: Date, default: Date.now },
 });
 const Trade = mongoose.model('Trade', tradeSchema);
+const transactionSchema = new mongoose.Schema({
+    token: { type: String, required: true }, // Token name
+    tokenAddress: { type: String, required: true }, // Contract address
+    type: { type: String, required: true, enum: ["Buy", "Sell"] }, // Buy or Sell transaction
+    quantity: { type: Number, required: true }, // Number of tokens transacted
+    amount: { type: Number, required: true }, // Amount in AMB
+    tokenPrice: { type: Number }, // Price per token at time of transaction
+    virtualReserve: { type: Number }, // Virtual reserve value
+    tokenReserve: { type: Number }, // Token reserve value
+    marketCap: { type: Number }, // Market capitalization
+    usdMarketCap: { type: Number }, // Market cap in USD
+    usdPrice: { type: Number }, // Token price in USD
+    timestamp: { type: Date, default: Date.now }, // Transaction timestamp
+    buyer: { type: String }, // Buyer's wallet address (if Buy transaction)
+    seller: { type: String }, // Seller's wallet address (if Sell transaction)
+    transactionHash: { type: String, required: true, unique: true }, // Blockchain transaction hash
+    bondingCurveAddress: { type: String, required: true }, // Bonding curve contract address
+});
+const TransactionModel = transactionsConnection.model("Transaction", transactionSchema);
+const holderSchema = new mongoose.Schema({
+    address: { type: String, required: true }, // Wallet address of the holder
+    balance: { type: Number, required: true }, // Token balance of the holder
+    percentageHold: { type: Number, required: true }, // Percentage of total supply held
+});
+const HolderModel = mongoose.model("Holder", holderSchema);
+const usersSchema = new mongoose.Schema({
+    mint: { type: String, required: true }, 
+    balance: { type: Number, required: true },
+    name: { type: String, required: true },
+    symbol: { type: String, required: true }, 
+    imageURI: { type: String },
+    metadataURI: { type: String },
+});
+const UsersModel = mongoose.model("Users", usersSchema);
   
 
 // Function to generate a new API key
@@ -833,34 +884,33 @@ async function fetchAmbPrice() {
 
 const typeDefs = gql`
 	type Token {
-		mint: String!                    # Identifier, renamed from "identifier"
-		address: String!                 # Token contract address
-		name: String!                    # Token name
-		symbol: String!                  # Token symbol
-		totalSupply: Int!                # Total supply of the token
-		balanceOf: Int!                  # Creator's balance, initially equal to totalSupply
-		bondingCurve: String!            # Bonding curve address
-		creator: String!                 # Address of the creator
-		transactionHash: String!         # Hash of the token creation transaction
-		description: String              # Optional description
-		imageURI: String!                # Image URI uploaded to IPFS
-		metadataURI: String!             # Metadata URI uploaded to IPFS
-		twitter: String                  # Optional Twitter link
-		telegram: String                 # Optional Telegram link
-		website: String                  # Optional Website link
-		pool: String!                    # Always "DAOMEFactory"
-		usdMarketCap: Float!             # USD market cap (marketCap * current AMB price)
-		usdPrice: Float!             # USD token Prce (tokenprice * current AMB price)
-		fdv: Float!                      # Fully diluted valuation, same as usdMarketCap
-		mint_authority: Boolean!         # Always false
-		freeze_authority: Boolean!       # Always false
-		liquidity_burned: Boolean!       # Always true
-		migrated: Boolean!               # Always false
-		burn_curve: String               # Always null
-		tokenPrice: Float!               # Current price of the token (from bonding curve)
-		virtualReserve: Float!           # Virtual reserve of the bonding curve
-		tokenReserve: Float!             # Token reserve in the bonding curve
-		marketCap: Float!                # Market capitalization (from bonding curve)
+		mint: String!
+		name: String!
+		symbol: String!
+		totalSupply: Float!
+		balanceOf: Float!
+		bondingCurve: String!
+		creator: String!
+		transactionHash: String!
+		description: String
+		imageURI: String
+		metadataURI: String
+		twitter: String
+		telegram: String
+		website: String
+		pool: String
+		usdMarketCap: Float
+		usdPrice: Float
+		fdv: Float
+		mint_authority: Boolean
+		freeze_authority: Boolean
+		liquidity_burned: Boolean
+		migrated: Boolean
+		burn_curve: String
+		tokenPrice: Float
+		virtualReserve: Float
+		tokenReserve: Float
+		marketCap: Float
 	}
 
 	type FActoryToken {
@@ -880,12 +930,20 @@ const typeDefs = gql`
 		creator: String
 	}
 	type Transaction {
+		token: String!
+		tokenAddress: String!
 		type: String!
-		quantity: Float!
-		amount: Float
+		amount: Float!
+		tokenPrice: Float!
+		virtualReserve: Float!
+		tokenReserve: Float!
+		marketCap: Float!
+		usdMarketCap: Float!
+		usdPrice: Float!
 		timestamp: String!
-		user: String
+		buyer: String!
 		transactionHash: String!
+		bondingCurveAddress: String!
 	}
 
 	type TokenDetails {
@@ -899,7 +957,6 @@ const typeDefs = gql`
 
 	type TokenPurchase {
 		token: String!
-		tokenAddress: String!
 		quantity: Float!
 		amountPaid: Float!
 		timestamp: String!
@@ -1415,15 +1472,18 @@ const resolvers = {
 				const marketCap = await bondingCurveContract.methods.getMarketCap().call();
 		
 				const numericMarketCap = parseFloat(web3.utils.fromWei(marketCap, 'ether'));
+				const numericvirtualReserve = parseFloat(web3.utils.fromWei(virtualReserve, 'ether'));
 				const numericUsdprice = parseFloat(web3.utils.fromWei(tokenPrice, 'ether'));
 				const usdMarketCap = isNaN(numericMarketCap) || isNaN(ambPrice) ? 0 : numericMarketCap * ambPrice;
 				const usdPrice = isNaN(numericUsdprice) || isNaN(ambPrice) ? 0 : numericUsdprice * ambPrice;
+				const Liquidity = isNaN(numericvirtualReserve) || isNaN(ambPrice) ? 0 : numericvirtualReserve * ambPrice;
 
-		
+				// Get the current timestamp
+				const creationTime = new Date();
+
 				// Save to MongoDB
 				const tokenData = {
 					mint,
-					address: tokenAddress,
 					name,
 					symbol,
 					totalSupply,
@@ -1446,21 +1506,34 @@ const resolvers = {
 					liquidity_burned: true,
 					migrated: false,
 					burn_curve: null,
+					Liquidity,
 					tokenPrice: parseFloat(web3.utils.fromWei(tokenPrice, 'ether')),
 					virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve, 'ether')),
 					tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
 					marketCap: parseFloat(web3.utils.fromWei(marketCap, 'ether')),
+					creationTime,
 				};
 		
 				const tradeData = {
 					mint,
-					contractAddress: tokenAddress,
+					name,
+					symbol,
+					imageURI,
 					tokenPrice: parseFloat(web3.utils.fromWei(tokenPrice, 'ether')),
+					usdPrice,
 					virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve, 'ether')),
+					Liquidity,
 					tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
 					marketCap: parseFloat(web3.utils.fromWei(marketCap, 'ether')),
 					usdMarketCap,
 					usdPrice,
+					TXNS: 1,
+					BUYS: 1,
+					SELLS: 1,
+					Volume: 1,
+					BuyVolume: 1,
+					SellVolume: 1,
+					Age: creationTime,
 				};
 		
 				await Token.create(tokenData);
@@ -1475,7 +1548,6 @@ const resolvers = {
 				// Return response
 				return {
 					mint,
-					address: tokenAddress,
 					name,
 					symbol,
 					totalSupply,
@@ -1612,9 +1684,12 @@ const resolvers = {
 
 						const ambPrice = await fetchAmbPrice();
 						const numericTokenPrice = parseFloat(web3.utils.fromWei(tokenPrice || '0', 'ether'));
+						const numericvirtualReserve = parseFloat(web3.utils.fromWei(virtualReserve, 'ether'));
 						const numericMarketCap = parseFloat(web3.utils.fromWei(marketCap || '0', 'ether'));
 						const usdMarketCap = isNaN(numericMarketCap) || isNaN(ambPrice) ? 0 : numericMarketCap * ambPrice;
 						const usdPrice = isNaN(numericTokenPrice) || isNaN(ambPrice) ? 0 : numericTokenPrice * ambPrice;
+						const Liquidity = isNaN(numericvirtualReserve) || isNaN(ambPrice) ? 0 : numericvirtualReserve * ambPrice;
+						const volumebuy = AmountPaid * ambPrice
 
 						// Update token and trades in the primary database
 						await primaryConnection.collection('tokens').updateOne(
@@ -1627,6 +1702,7 @@ const resolvers = {
 									marketCap: numericMarketCap,
 									usdMarketCap,
 									usdPrice,
+									Liquidity,
 								},
 							}
 						);
@@ -1640,6 +1716,12 @@ const resolvers = {
 									marketCap: numericMarketCap,
 									usdMarketCap,
 									usdPrice,
+								},
+								$inc: {
+									TXNS: 1, 
+									BUYS: 1, 
+									BuyVolume: volumebuy, 
+									Volume: volumebuy, 
 								},
 							}
 						);
@@ -1686,12 +1768,9 @@ const resolvers = {
 
 						// Store transaction in transactions database
 						const transactionData = {
-							token: tokenName,
-							tokenAddress,
 							type: "Buy",
 							quantity,
-							totalCost,
-							amountPaid: parseFloat(amount),
+							AmountPaid : totalCost,
 							tokenPrice: numericTokenPrice,
 							virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
 							tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
@@ -1707,6 +1786,39 @@ const resolvers = {
 						const transactionCollection = transactionsConnection.collection(tokenAddress);
 						await transactionCollection.insertOne(transactionData);
 						console.log(`Transaction saved in collection: ${tokenAddress}`);
+
+						console.log(`📥 Updating user collection for wallet: ${buyer}`);
+						const userCollection = UsersConnection.collection(buyer);
+						// Check if user already exists in their collection
+						const existingUser = await userCollection.findOne({ mint });
+
+						if (existingUser) {
+							console.log("🔄 User already exists. Updating balance...");
+				
+							// Update the user's balance and other details
+							await userCollection.updateOne(
+								{ mint },
+								{
+									$set: { 
+										name, symbol, imageURI, metadataURI, balance : userBalance },
+								}
+							);
+							console.log(`✅ Updated balance for ${buyer}`);
+						} else {
+							console.log("🆕 User does not exist. Creating new record...");
+				
+							// Create a new record in the user's collection
+							await userCollection.insertOne({
+								mint,
+								balance : userBalance ,
+								name,
+								symbol,
+								imageURI,
+								metadataURI,
+							});
+				
+							console.log(`✅ New user record created for ${buyer}`);
+						}
 					} catch (error) {
 						console.error('Error during asynchronous database updates:', error.message);
 						console.error(error.stack);

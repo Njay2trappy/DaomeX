@@ -61,13 +61,26 @@ const typeDefs = gql`
 		marketCap: Float!
 	}
   type Transaction {
-		type: String!
-		quantity: Float!
-		amount: Float
-		timestamp: String!
-		user: String
-		transactionHash: String!
-	}
+    token: String!
+    tokenAddress: String!
+    type: String!
+    amount: Float!
+    tokenPrice: Float!
+    virtualReserve: Float!
+    tokenReserve: Float!
+    marketCap: Float!
+    usdMarketCap: Float!
+    usdPrice: Float!
+    timestamp: String!
+    buyer: String!
+    transactionHash: String!
+    bondingCurveAddress: String!
+  }
+  type TransactionConfirmationResponse {
+    success: Boolean!
+    message: String!
+    transactionHash: String!
+  }
   type Holder {
     address: String!
     balance: Float!
@@ -75,6 +88,15 @@ const typeDefs = gql`
   }
   type TokenCreationResponse {
     encodedTx: EncodedTransaction!            # The unique mint identifier for the token
+  }
+  type TokenPurchase {
+		mint: String!
+		quantity: Float!
+		AmountPaid: Float!
+		timestamp: String!
+		buyer: String!
+		transactionHash: String!
+		bondingCurve: String!
   }
 
   type EncodedTransaction {
@@ -131,6 +153,8 @@ const typeDefs = gql`
       telegram: String
       website: String
     ): Token
+    buyTokens(MintOrAddress: String!, amount: String!, slippageTolerance: String!): EncodedTransaction!
+    confirmTokenPurchase(transactionHash: String!): TokenPurchase!
   }
 `;
 

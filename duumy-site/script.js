@@ -685,12 +685,58 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("❌ Something went wrong. Check the console for details.");
         }
     }
- 
+    async function handleBuyTokens(event) {
+        event.preventDefault();
     
-
-
-
-
+        if (!window.ethereum) {
+            alert("❌ MetaMask is not installed. Please install it first.");
+            return;
+        }
+    
+        const formData = new FormData(buyTokenForm);
+        const MintOrAddress = formData.get("MintOrAddress");
+        const amount = formData.get("amount");
+        const slippageTolerance = formData.get("slippageTolerance");
+    
+        try {
+            console.log(`📜 Preparing to buy tokens: ${MintOrAddress} with amount ${amount}`);
+    
+            const response = await fetch(GRAPHQL_ENDPOINT, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+                },
+                body: JSON.stringify({
+                    query: `mutation BuyTokens($MintOrAddress: String!, $amount: String!, $slippageTolerance: String!) {
+                        buyTokens(MintOrAddress: $MintOrAddress, amount: $amount, slippageTolerance: $slippageTolerance) {
+                            encodedTx {
+                                from
+                                to
+                                data
+                                value
+                                gas
+                            }
+                        }
+                    }`,
+                    variables: { MintOrAddress, amount, slippageTolerance },
+                }),
+            });
+    
+            const result = await response.json();
+            const { from, to, data, value, gas } = result.data.buyTokens.encodedTx;
+    
+            const web3 = new Web3(window.ethereum);
+            const receipt = await web3.eth.sendTransaction({ from, to, data, value, gas });
+    
+            console.log("✅ Transaction Successful:", receipt);
+            
+            // Call confirmTokenPurchase mutation
+            confirmTokenPurchase(receipt.transactionHash, MintOrAddress, amount);
+        } catch (error) {
+            console.error("❌ Error buying tokens:", error);
+        }
+    }
     // 🔄 Helper function to create a multipart request body
     function createMultipartBody(query, variables) {
         const map = {};
