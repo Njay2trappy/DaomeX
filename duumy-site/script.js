@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const createTokenForm = document.getElementById("createTokenForm");
     const createTokenStatus = document.getElementById("createTokenStatus");
     const buyTokenForm = document.getElementById("buyTokenForm");
+    const approveTokenForm = document.getElementById("approveTokenForm");
 
     let uploadedImageURI = "";
 
@@ -562,23 +563,70 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("❌ An error occurred. Check console for details.");
         }
     }
-    // 🔄 Helper function to create a multipart request body
-    function createMultipartBody(query, variables) {
-        const map = {};
-        const form = new FormData();
-
-        Object.keys(variables).forEach((key, index) => {
-            if (variables[key] instanceof File) {
-                map[index] = [`variables.${key}`];
-                form.append(index, variables[key]);
+    async function approveToken(event) {
+        event.preventDefault();
+    
+        if (!window.ethereum) {
+            alert("❌ MetaMask is not installed. Please install it first.");
+            return;
+        }
+    
+        const formData = new FormData(approveTokenForm);
+        const MintOrAddress = formData.get("approveMintOrAddress");
+        const amount = formData.get("approveAmount");
+    
+        try {
+            console.log(`📜 Requesting approval for: ${MintOrAddress} with amount ${amount}`);
+    
+            // Step 1: Request encoded transaction from backend
+            const response = await fetch(GRAPHQL_ENDPOINT, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+                },
+                body: JSON.stringify({
+                    query: `
+                        mutation ApproveToken($MintOrAddress: String!, $amount: String!) {
+                            approveToken(MintOrAddress: $MintOrAddress, amount: $amount) {
+                                encodedTx {
+                                    from
+                                    to
+                                    data
+                                    gas
+                                }
+                                token
+                                tokenAddress
+                                bondingCurveAddress
+                                amountApproved
+                            }
+                        }
+                    `,
+                    variables: { MintOrAddress, amount },
+                }),
+            });
+    
+            const result = await response.json();
+            if (result.errors) {
+                console.error("❌ Error fetching approval transaction:", result.errors);
+                alert("❌ Token approval failed. Check console for details.");
+                return;
             }
-        });
-
-        form.append("operations", JSON.stringify({ query, variables }));
-        form.append("map", JSON.stringify(map));
-
-        return form;
-    }    
+    
+            const { from, to, data, gas } = result.data.approveToken.encodedTx;
+    
+            // Step 2: Sign and send the transaction using MetaMask
+            const web3 = new Web3(window.ethereum);
+            const receipt = await web3.eth.sendTransaction({ from, to, data, gas });
+    
+            console.log("✅ Approval Transaction Successful:", receipt);
+            alert(`✅ Token Approved Successfully! Transaction Hash: ${receipt.transactionHash}`);
+    
+        } catch (error) {
+            console.error("❌ Error during token approval:", error);
+            alert("❌ An error occurred. Check console for details.");
+        }
+    }
     function logoutMetaMask() {
         console.log("🔌 Logging out...");
         localStorage.removeItem("userToken");
@@ -610,6 +658,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (buyTokenForm) {
         buyTokenForm.addEventListener("submit", handleBuyTokens);
+    }
+    if (approveTokenForm) {
+        approveTokenForm.addEventListener("submit", approveToken);
     }
 });
 

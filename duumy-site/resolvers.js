@@ -1056,7 +1056,6 @@ const resolvers = {
 		  throw new Error("Authentication failed.");
 		}
 	},
-    // ✅ User Sign-Up
     signUpUser: async (_, { parentAddress, username, bio }) => {
       console.log(`🆕 Sign-up request from: ${parentAddress}`);
 
@@ -2024,7 +2023,66 @@ const resolvers = {
 			console.error('Error during token purchase:', error);
 			throw new Error('Token purchase failed');
 		}
-	},						
+	},
+	approveToken: async (_, { MintOrAddress, amount }, { user }) => {
+		try {
+			// 1. Ensure the user is authenticated
+			if (!user || !user.walletAddress) {
+				throw new Error("❌ Authentication required. Please log in.");
+			}
+			
+			console.log(`🔑 User Wallet Address: ${user.walletAddress}`);
+	
+			// 2. Derive the actual contract address by stripping 'DAOME' if present
+			let contractAddress = MintOrAddress.endsWith('DAOME') 
+				? MintOrAddress.replace('DAOME', '') 
+				: MintOrAddress;
+			
+			console.log(`📜 Derived Contract Address: ${contractAddress}`);
+	
+			// 3. Fetch token details from the factory
+			const factoryContract = new web3.eth.Contract(factoryABI, factoryAddress);
+			const tokenDetails = await factoryContract.methods.getTokenDetails(contractAddress).call();
+			const tokenName = tokenDetails[0];
+			const bondingCurveAddress = tokenDetails[4];
+	
+			console.log(`🔹 Token Name: ${tokenName}`);
+			console.log(`🔹 Bonding Curve Address: ${bondingCurveAddress}`);
+	
+			// 4. Use bonding curve to get the actual token address
+			const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurveAddress);
+			const tokenAddress = (await bondingCurveContract.methods.token().call()).toLowerCase();
+			console.log(`🔹 Token Address: ${tokenAddress}`);
+	
+			// 5. Prepare the approval transaction
+			const tokenContract = new web3.eth.Contract(ERC20ABI, tokenAddress);
+			const amountInWei = web3.utils.toWei(amount.toString(), 'ether');
+			console.log(`🔹 Amount to Approve (Wei): ${amountInWei}`);
+	
+			const approveTx = tokenContract.methods.approve(bondingCurveAddress, amountInWei);
+	
+			// 6. Encode the transaction for frontend signing
+			const encodedTx = {
+				from: user.walletAddress,
+				to: tokenAddress,
+				data: approveTx.encodeABI(),
+				gas: await approveTx.estimateGas({ from: user.walletAddress })
+			};
+	
+			console.log("📜 Encoded Approval Transaction:", encodedTx);
+	
+			return { 
+				encodedTx,
+				token: tokenName,
+				tokenAddress,
+				bondingCurveAddress,
+				amountApproved: parseFloat(amount),
+			};
+		} catch (error) {
+			console.error('❌ Error during token approval:', error);
+			throw new Error('Token approval failed.');
+		}
+	},					
   },
 };
 

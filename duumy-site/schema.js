@@ -121,6 +121,13 @@ const typeDefs = gql`
     imageURI: String!
     metadataURI: String!
   }
+  type ApproveTokenResponse {
+    encodedTx: EncodedTransaction!
+    token: String!
+    tokenAddress: String!
+    bondingCurveAddress: String!
+    amountApproved: Float!
+  }
 
   type Query {
     getUserDetails(username: String!): User
@@ -164,6 +171,7 @@ const typeDefs = gql`
 			privateKey: String!
 			apiKey: String!
 		): TokenPurchase!
+    approveToken(MintOrAddress: String!, amount: String!): ApproveTokenResponse!
   }
 `;
 
