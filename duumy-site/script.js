@@ -504,13 +504,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
     
+            // Extract encoded transaction data
+            const encodedTx = result.data.buyTokens.encodedTx;
+            console.log("📜 Encoded Transaction:", encodedTx);
+    
             const web3 = new Web3(window.ethereum);
-            const receipt = await web3.eth.sendTransaction;
+    
+            // Step 2: Prompt user to sign & send transaction via MetaMask
+            const receipt = await web3.eth.sendTransaction({
+                from: encodedTx.from,
+                to: encodedTx.to,
+                data: encodedTx.data,
+                value: encodedTx.value,
+                gas: encodedTx.gas,
+            });
     
             console.log("✅ Transaction Successful:", receipt);
             alert(`✅ Transaction Successful! Hash: ${receipt.transactionHash}`);
     
-            // Step 2: Immediately confirm the token purchase in the backend
+            // Step 3: Immediately confirm the token purchase in the backend
             console.log(`📥 Confirming token purchase for hash: ${receipt.transactionHash}`);
     
             const confirmResponse = await fetch(GRAPHQL_ENDPOINT, {
@@ -543,7 +555,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
     
             console.log("✅ Token purchase confirmed:", confirmResult.data.confirmTokenPurchase);
-            alert(`✅ Token purchase confirmed! Token Address: ${confirmResult.data.confirmTokenPurchase.tokenAddress}`);
+            alert(`✅ Token purchase confirmed! Transaction Hash: ${confirmResult.data.confirmTokenPurchase.transactionHash}`);
+    
         } catch (error) {
             console.error("❌ Error during token purchase:", error);
             alert("❌ An error occurred. Check console for details.");

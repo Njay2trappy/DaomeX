@@ -1542,7 +1542,7 @@ const resolvers = {
 				console.log('Token and trade details saved in MongoDB');
 
 				// Create a collection for holders in the holders database
-                await holdersConnection.createCollection(tokenAddress);
+                await HolderModel.createCollection(tokenAddress);
                 console.log(`Holders collection created for token: ${tokenAddress}`);
 		
 				// Return response
@@ -1644,7 +1644,7 @@ const resolvers = {
 				const buyer = account.address;
 				const transactionHash = receipt.transactionHash;
 		
-				const tokenAddress = await bondingCurveContract.methods.token().call();
+				const tokenAddress = (await bondingCurveContract.methods.token().call()).toLowerCase();
 				if (!tokenAddress) {
 					throw new Error('Token address not found in bonding curve contract.');
 				}

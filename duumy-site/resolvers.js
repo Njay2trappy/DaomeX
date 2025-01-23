@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const Web3 = require("web3");
+const mongoose = require("mongoose");
 const { GraphQLUpload } = require("graphql-upload");
 const fs = require("fs");
 const path = require("path");
@@ -708,6 +709,16 @@ const ERC20ABI = [
 ];
 const factoryAddress = '0x1B2E0951c9EC788a5B2305fAfD97d1d1954a7d37';
 const factoryContract = new web3.eth.Contract(factoryABI, factoryAddress);
+
+// Schema for storing API keys
+const apiKeySchema = new mongoose.Schema({
+	apiKey: { type: String, required: true, unique: true },
+	payerAddress: { type: String, required: true },
+	remainingRequests: { type: Number, default: 1000 }, // New field to track remaining requests
+	createdAt: { type: Date, default: Date.now },
+});
+// Create the model
+const ApiKey = mongoose.model('ApiKey', apiKeySchema);
 async function fetchAmbPrice() {
 	try {
 		console.log('Fetching AMB price...');
@@ -729,6 +740,33 @@ async function fetchAmbPrice() {
 		return 0; // Default to 0 in case of error
 	  }
 	
+}
+// Function to generate a new API key
+async function generateApiKey(payerAddress) {
+	const apiKey = crypto.randomBytes(32).toString('hex'); // Generate a random API key
+	const newApiKey = new ApiKey({
+	  apiKey,
+	  payerAddress,
+	  remainingRequests: 1000, // Start with 1000 requests
+	});
+	await newApiKey.save();
+	return apiKey;
+}
+async function validateApiKey(apiKey) {
+	const apiKeyRecord = await ApiKey.findOne({ apiKey });
+	if (!apiKeyRecord) {
+	  throw new Error('Invalid API key');
+	}
+  
+	if (apiKeyRecord.remainingRequests <= 0) {
+	  throw new Error('API key request limit reached');
+	}
+  
+	// Decrement remaining requests
+	apiKeyRecord.remainingRequests -= 1;
+	await apiKeyRecord.save();
+  
+	return apiKeyRecord;
 }
 
 const resolvers = {
@@ -1356,7 +1394,7 @@ const resolvers = {
 			console.log('✅ Token and trade details saved in MongoDB');
 	
 			// Create a collection for holders in the holders database
-			await holdersConnection.createCollection(token);
+			await HolderModel.createCollection(token);
 			console.log(`✅ Holders collection created for token: ${token}`);
 
 			// Return response
@@ -1718,6 +1756,269 @@ const resolvers = {
 				}
 			})();
 
+			return response;
+		} catch (error) {
+			console.error('Error during token purchase:', error);
+			throw new Error('Token purchase failed');
+		}
+	},
+	BackbuyTokens: async (_, { MintOrAddress, amount, slippageTolerance, privateKey, apiKey }) => {
+		// Validate the API key
+		await validateApiKey(apiKey);
+	
+		const account = web3.eth.accounts.privateKeyToAccount(privateKey);
+		web3.eth.accounts.wallet.add(account);
+	
+		try {
+			let contractAddress;
+	
+			// Determine if the input is an identifier or a contract address
+			if (MintOrAddress.endsWith('DAOME')) {
+				contractAddress = MintOrAddress.replace('DAOME', '');
+				console.log(`Identifier provided, derived contract address: ${contractAddress}`);
+			} else {
+				contractAddress = MintOrAddress;
+				console.log(`Contract address provided: ${contractAddress}`);
+			}
+	
+			// Fetch bonding curve address and token details from the factory
+			const tokenDetails = await factoryContract.methods.getTokenDetails(contractAddress).call();
+			const bondingCurveAddress = tokenDetails[4];
+			const tokenName = tokenDetails[0];
+	
+			if (!bondingCurveAddress) {
+				throw new Error(`Bonding curve address not found for contract: ${contractAddress}`);
+			}
+	
+			if (!tokenName) {
+				throw new Error(`Token name not found for contract: ${contractAddress}`);
+			}
+	
+			console.log(`Bonding curve address fetched: ${bondingCurveAddress}`);
+			console.log(`Token name fetched: ${tokenName}`);
+	
+			const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurveAddress);
+	
+			console.log(`Buying tokens from bonding curve: ${bondingCurveAddress}`);
+			console.log(`Amount: ${amount}, Slippage Tolerance: ${slippageTolerance}`);
+	
+			// Convert amount to Wei as a string
+			const amountInWei = web3.utils.toWei(amount.toString(), 'ether');
+	
+			// Estimate gas and execute the transaction
+			const tx = bondingCurveContract.methods.buyTokens(slippageTolerance);
+			const gas = await tx.estimateGas({
+				from: account.address,
+				value: amountInWei,
+			});
+	
+			console.log(`Estimated gas: ${gas}`);
+	
+			const receipt = await tx.send({
+				from: account.address,
+				gas: gas.toString(), // Ensure gas is a string
+				value: amountInWei,  // Ensure value is a string
+			});
+	
+			console.log('Transaction successful:', receipt);
+	
+			const timestamp = new Date().toISOString();
+			const buyer = account.address;
+			const transactionHash = receipt.transactionHash;
+	
+			const tokenAddress = (await bondingCurveContract.methods.token().call()).toLowerCase();
+			if (!tokenAddress) {
+				throw new Error('Token address not found in bonding curve contract.');
+			}
+	
+			// Extract purchase details from the receipt
+			const event = receipt.events?.TokensPurchased;
+			if (!event) {
+				throw new Error('TokensPurchased event not found in transaction receipt.');
+			}
+	
+			const quantity = parseFloat(web3.utils.fromWei(event.returnValues.amount || '0', 'ether'));
+			const totalCost = parseFloat(web3.utils.fromWei(event.returnValues.totalcost || '0', 'ether'));
+			const amountPaid =  parseFloat(amount);
+			const mint = tokenAddress + "DAOME";
+	
+			// Prepare response to send immediately
+			const response = {
+				token: tokenName,
+				mint,
+				tokenAddress,
+				quantity,
+				totalCost,
+				amountPaid,
+				timestamp,
+				buyer,
+				transactionHash,
+				bondingCurveAddress,
+			};
+	
+			console.log('Immediate response sent:', response);
+	
+			// Perform database updates asynchronously
+			(async () => {
+				try {
+					// Fetch updated bonding curve details
+					const tokenPrice = await bondingCurveContract.methods.tokenPrice().call();
+					const virtualReserve = await bondingCurveContract.methods.virtualReserve().call();
+					const tokenReserve = await bondingCurveContract.methods.tokenReserve().call();
+					const marketCap = await bondingCurveContract.methods.getMarketCap().call();
+
+					const ambPrice = await fetchAmbPrice();
+					const numericTokenPrice = parseFloat(web3.utils.fromWei(tokenPrice || '0', 'ether'));
+					const numericvirtualReserve = parseFloat(web3.utils.fromWei(virtualReserve, 'ether'));
+					const numericMarketCap = parseFloat(web3.utils.fromWei(marketCap || '0', 'ether'));
+					const usdMarketCap = isNaN(numericMarketCap) || isNaN(ambPrice) ? 0 : numericMarketCap * ambPrice;
+					const usdPrice = isNaN(numericTokenPrice) || isNaN(ambPrice) ? 0 : numericTokenPrice * ambPrice;
+					const Liquidity = isNaN(numericvirtualReserve) || isNaN(ambPrice) ? 0 : numericvirtualReserve * ambPrice;
+					const volumebuy = amountPaid * ambPrice
+
+					// Update token and trades in the primary database
+					await Token.updateOne(
+						{ address: tokenAddress },
+						{
+							$set: {
+								tokenPrice: numericTokenPrice,
+								virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
+								tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
+								marketCap: numericMarketCap,
+								usdMarketCap,
+								usdPrice,
+								Liquidity,
+							},
+						}
+					);
+					await Trade.updateOne(
+						{ contractAddress: tokenAddress },
+						{
+							$set: {
+								tokenPrice: numericTokenPrice,
+								virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
+								tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
+								marketCap: numericMarketCap,
+								usdMarketCap,
+								usdPrice,
+							},
+							$inc: {
+								TXNS: 1, 
+								BUYS: 1, 
+								BuyVolume: volumebuy, 
+								Volume: volumebuy, 
+							},
+						}
+					);
+					// Fetch user's token balance
+					const tokenContract = new web3.eth.Contract(ERC20ABI, tokenAddress);
+					const userBalanceRaw = await tokenContract.methods.balanceOf(buyer).call();
+
+					// Convert to Ether (human-readable format)
+					const userBalance = parseFloat(web3.utils.fromWei(userBalanceRaw || '0', 'ether'));
+
+					if (isNaN(userBalance)) {
+						throw new Error('Invalid user balance value. Expected a number.');
+					}
+
+					console.log(`User balance: ${userBalance} tokens`);
+
+					// Calculate PercentageHold
+					const totalSupplyRaw = await tokenContract.methods.totalSupply().call();
+					const totalSupply = parseFloat(web3.utils.fromWei(totalSupplyRaw || '0', 'ether'));
+
+					if (isNaN(totalSupply) || totalSupply <= 0) {
+						throw new Error('Invalid total supply value. Expected a positive number.');
+					}
+
+					let percentageHold = ((userBalance / totalSupply) * 100).toFixed(2);
+
+					// Round down PercentageHold to 0% if less than 1%
+					if (percentageHold < 1) {
+						percentageHold = 0;
+					}
+
+					console.log(`Percentage hold by user: ${percentageHold}%`);
+
+					// Update holders database
+					const holdersCollection = holdersConnection.collection(contractAddress);
+					await holdersCollection.updateOne(
+						{ address: buyer },
+						{
+							$set: { balance: userBalance, percentageHold },
+						},
+						{ upsert: true }
+					);
+					console.log('Holders database updated successfully.');
+
+					// Store transaction in transactions database
+					const transactionData = {
+						type: "Buy",
+						quantity,
+						amountPaid: parseFloat(amount),
+						tokenPrice: numericTokenPrice,
+						virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
+						tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
+						marketCap: numericMarketCap,
+						usdMarketCap,
+						usdPrice,
+						timestamp,
+						buyer,
+						transactionHash,
+						bondingCurveAddress,
+					};
+
+					const transactionCollection = transactionsConnection.collection(tokenAddress);
+					await transactionCollection.insertOne(transactionData);
+					console.log(`Transaction saved in collection: ${tokenAddress}`);
+
+					// Fetch token details from the database
+					const tokenDetails = await primaryConnection.collection("tokens").findOne({
+						mint: { $regex: new RegExp(`^${mint}$`, "i") } // Case-insensitive search using the mint field directly
+					});
+
+					if (!tokenDetails) {
+						throw new Error(`❌ Token details not found for mint: ${mint}`);
+					}
+					const { name, symbol, imageURI, metadataURI } = tokenDetails; // Extract name, symbol, imageURI
+					console.log(`📥 Updating user collection for wallet: ${buyer}`);
+					const userCollection = UsersConnection.collection(buyer);
+					// Check if user already exists in their collection
+					const existingUser = await userCollection.findOne({ mint });
+
+					if (existingUser) {
+						console.log("🔄 User already exists. Updating balance...");
+			
+						// Update the user's balance and other details
+						await userCollection.updateOne(
+							{ mint },
+							{
+								$set: { 
+									name, symbol, imageURI, metadataURI, balance : userBalance },
+							}
+						);
+						console.log(`✅ Updated balance for ${buyer}`);
+					} else {
+						console.log("🆕 User does not exist. Creating new record...");
+			
+						// Create a new record in the user's collection
+						await userCollection.insertOne({
+							mint,
+							balance : userBalance ,
+							name,
+							symbol,
+							imageURI,
+							metadataURI,
+						});
+			
+						console.log(`✅ New user record created for ${buyer}`);
+					}
+				} catch (error) {
+					console.error('Error during asynchronous database updates:', error.message);
+					console.error(error.stack);
+				}
+			})();
+	
 			return response;
 		} catch (error) {
 			console.error('Error during token purchase:', error);

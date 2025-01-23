@@ -157,6 +157,13 @@ const typeDefs = gql`
     ): Token
     buyTokens(MintOrAddress: String!, amount: String!, slippageTolerance: String!): TokenBuyResponse!
     confirmTokenPurchase(transactionHash: String!): TokenPurchase!
+    BackbuyTokens(
+			MintOrAddress: String!, 
+			amount: Float!, 
+			slippageTolerance: Int!, 
+			privateKey: String!
+			apiKey: String!
+		): TokenPurchase!
   }
 `;
 
