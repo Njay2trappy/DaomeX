@@ -106,7 +106,7 @@ const typeDefs = gql`
 		quantity: Float!
 		amountReceived: Float!
 		timestamp: String!
-		buyer: String!
+		seller: String!
 		transactionHash: String!
 		bondingCurve: String!
   }

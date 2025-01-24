@@ -1696,7 +1696,7 @@ const resolvers = {
 
 						// Update token and trades in the primary database
 						await primaryConnection.collection('tokens').updateOne(
-							{ address: tokenAddress },
+							{ mint: mint },
 							{
 								$set: {
 									tokenPrice: numericTokenPrice,
@@ -1710,7 +1710,7 @@ const resolvers = {
 							}
 						);
 						await primaryConnection.collection('trades').updateOne(
-							{ contractAddress: tokenAddress },
+							{ mint: mint },
 							{
 								$set: {
 									tokenPrice: numericTokenPrice,
@@ -2066,23 +2066,28 @@ const resolvers = {
 				const tokensBurnedEvent = receipt.events.TokensBurned;
 				const quantitySold = parseFloat(web3.utils.fromWei(tokensBurnedEvent.returnValues.amount, 'ether'));
 				const amountReceived = parseFloat(web3.utils.fromWei(tokensBurnedEvent.returnValues.netRefund, 'ether'));
+				const mint = tokenAddress + 'DAOME';
 		
 				// Fetch updated bonding curve details
 				const tokenPrice = await bondingCurveContract.methods.tokenPrice().call();
 				const virtualReserve = await bondingCurveContract.methods.virtualReserve().call();
 				const tokenReserve = await bondingCurveContract.methods.tokenReserve().call();
 				const marketCap = await bondingCurveContract.methods.getMarketCap().call();
+				const tokenAddress = (await bondingCurveContract.methods.token().call()).toLowerCase();
 		
 				const ambPrice = await fetchAmbPrice();
 				const numericTokenPrice = parseFloat(web3.utils.fromWei(tokenPrice, 'ether'));
+				const numericvirtualReserve = parseFloat(web3.utils.fromWei(virtualReserve, 'ether'));
 				const numericMarketCap = parseFloat(web3.utils.fromWei(marketCap, 'ether'));
 				const usdMarketCap = numericMarketCap * ambPrice || 0;
 				const usdPrice = numericTokenPrice * ambPrice || 0;
+				const Liquidity = isNaN(numericvirtualReserve) || isNaN(ambPrice) ? 0 : numericvirtualReserve * ambPrice;
+				const volumesell = amountReceived * ambPrice
 		
 				// Return response immediately
 				const response = {
 					token: tokenName,
-					tokenAddress: contractAddress,
+					mint,
 					type: "Sell",
 					quantitySold,
 					amountReceived,
@@ -2104,49 +2109,70 @@ const resolvers = {
 					try {
 						// Update token and trades in primary database
 						await primaryConnection.collection('tokens').updateOne(
-							{ address: contractAddress },
+							{ mint: mint },
 							{
 								$set: {
 									tokenPrice: numericTokenPrice,
-									virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve, 'ether')),
-									tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
+									virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
+									tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
 									marketCap: numericMarketCap,
 									usdMarketCap,
 									usdPrice,
+									Liquidity,
 								},
 							}
 						);
-		
 						await primaryConnection.collection('trades').updateOne(
-							{ contractAddress },
+							{ mint: mint },
 							{
 								$set: {
 									tokenPrice: numericTokenPrice,
-									virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve, 'ether')),
-									tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve, 'ether')),
+									virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
+									tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
 									marketCap: numericMarketCap,
 									usdMarketCap,
 									usdPrice,
 								},
+								$inc: {
+									TXNS: 1, 
+									SELLS: 1, 
+									BuyVolume: volumesell, 
+									Volume: volumesell, 
+								},
 							}
 						);
-		
-						// Update holders database
+						// Fetch user's token balance
+						const tokenContract = new web3.eth.Contract(ERC20ABI, tokenAddress);
 						const userBalanceRaw = await tokenContract.methods.balanceOf(seller).call();
-						const userBalance = parseFloat(web3.utils.fromWei(userBalanceRaw, 'ether'));
+
+						// Convert to Ether (human-readable format)
+						const userBalance = parseFloat(web3.utils.fromWei(userBalanceRaw || '0', 'ether'));
+
+						if (isNaN(userBalance)) {
+							throw new Error('Invalid user balance value. Expected a number.');
+						}
+
+						console.log(`User balance: ${userBalance} tokens`);
+
+						// Calculate PercentageHold
 						const totalSupplyRaw = await tokenContract.methods.totalSupply().call();
-						const totalSupply = parseFloat(web3.utils.fromWei(totalSupplyRaw, 'ether'));
+						const totalSupply = parseFloat(web3.utils.fromWei(totalSupplyRaw || '0', 'ether'));
+
+						if (isNaN(totalSupply) || totalSupply <= 0) {
+							throw new Error('Invalid total supply value. Expected a positive number.');
+						}
+
 						let percentageHold = ((userBalance / totalSupply) * 100).toFixed(2);
-		
+
 						// Round down PercentageHold to 0% if less than 1%
 						if (percentageHold < 1) {
 							percentageHold = 0;
 						}
-		
-						console.log(`User balance after sell: ${userBalance} tokens`);
-						console.log(`Updated percentage hold: ${percentageHold}%`);
-		
-						const holdersCollection = holdersConnection.collection(contractAddress);
+
+						console.log(`Percentage hold by user: ${percentageHold}%`);
+
+						// Update holders database
+						const holdersCollection = holdersConnection.collection(tokenAddress);
 						await holdersCollection.updateOne(
 							{ address: seller },
 							{
@@ -2154,19 +2180,73 @@ const resolvers = {
 							},
 							{ upsert: true }
 						);
-		
-						console.log(`Holders database updated for contract: ${contractAddress}`);
-		
+						console.log('Holders database updated successfully.');
+
 						// Store transaction in transactions database
 						const transactionData = {
-							...response,
+							type: "Sell",
+							quantity,
+							amountPaid: parseFloat(amount),
+							tokenPrice: numericTokenPrice,
+							virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
+							tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
+							marketCap: numericMarketCap,
+							usdMarketCap,
+							usdPrice,
+							timestamp,
+							seller,
+							transactionHash,
+							bondingCurveAddress,
 						};
-		
-						const transactionCollection = transactionsConnection.collection(contractAddress);
+
+						const transactionCollection = transactionsConnection.collection(tokenAddress);
 						await transactionCollection.insertOne(transactionData);
-						console.log(`Transaction saved in collection: ${contractAddress}`);
-					} catch (dbError) {
-						console.error('Error during asynchronous database updates:', dbError);
+						console.log(`Transaction saved in collection: ${tokenAddress}`);
+
+						// Fetch token details from the database
+						const tokenDetails = await primaryConnection.collection("tokens").findOne({
+							mint: { $regex: new RegExp(`^${mint}$`, "i") } // Case-insensitive search using the mint field directly
+						});
+
+						if (!tokenDetails) {
+							throw new Error(`❌ Token details not found for mint: ${mint}`);
+						}
+						const { name, symbol, imageURI, metadataURI } = tokenDetails; // Extract name, symbol, imageURI
+						console.log(`📥 Updating user collection for wallet: ${seller}`);
+						const userCollection = UsersConnection.collection(seller);
+						// Check if user already exists in their collection
+						const existingUser = await userCollection.findOne({ mint });
+
+						if (existingUser) {
+							console.log("🔄 User already exists. Updating balance...");
+				
+							// Update the user's balance and other details
+							await userCollection.updateOne(
+								{ mint },
+								{
+									$set: { 
+										name, symbol, imageURI, metadataURI, balance : userBalance },
+								}
+							);
+							console.log(`✅ Updated balance for ${seller}`);
+						} else {
+							console.log("🆕 User does not exist. Creating new record...");
+				
+							// Create a new record in the user's collection
+							await userCollection.insertOne({
+								mint,
+								balance : userBalance ,
+								name,
+								symbol,
+								imageURI,
+								metadataURI,
+							});
+				
+							console.log(`✅ New user record created for ${seller}`);
+						}
+					} catch (error) {
+						console.error('Error during asynchronous database updates:', error.message);
+						console.error(error.stack);
 					}
 				})();
 		
