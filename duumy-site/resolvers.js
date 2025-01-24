@@ -2087,7 +2087,6 @@ const resolvers = {
 		if (!user || !user.walletAddress) {
 			throw new Error("❌ Authentication required. Please log in.");
 		}
-	
 		try {
 			let contractAddress;
 	
@@ -2099,7 +2098,6 @@ const resolvers = {
 				contractAddress = MintOrAddress;
 				console.log(`Contract address provided: ${contractAddress}`);
 			}
-	
 			// Fetch token details from the factory using the contract address
 			const tokenDetails = await factoryContract.methods.getTokenDetails(contractAddress).call();
 			const bondingCurveAddress = tokenDetails[4]; // Assuming bondingCurve is at index 4
@@ -2226,7 +2224,7 @@ const resolvers = {
 			const { seller, amount, netRefund} = TokensBurnedEvent.args;
 
 			const quantity = amount/ 1000000000000000000;
-			const amountPaid = netRefund/ 1000000000000000000;
+			const amountReceived = netRefund/ 1000000000000000000;
 
 			const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurve);
 			const tokenAddress = (await bondingCurveContract.methods.token().call()).toLowerCase();
@@ -2240,17 +2238,17 @@ const resolvers = {
 			- Mint: ${mint}
 			- Bonding Curve Address: ${bondingCurve}
 			- Token received: ${quantity}
-			- Token paid: ${amountPaid}
+			- Token paid: ${amountReceived}
 			- Age: ${timestamp}
-			- buyer: ${seller}
+			- seller: ${seller}
 			`);
 			// Prepare response to send immediately
 			const response = {
 				mint,
 				quantity,
-				amountPaid,
+				amountReceived,
 				timestamp,
-				buyer,
+				seller,
 				transactionHash,
 				bondingCurve,
 			};
@@ -2273,9 +2271,9 @@ const resolvers = {
 					const usdMarketCap = isNaN(numericMarketCap) || isNaN(ambPrice) ? 0 : numericMarketCap * ambPrice;
 					const usdPrice = isNaN(numericTokenPrice) || isNaN(ambPrice) ? 0 : numericTokenPrice * ambPrice;
 					const Liquidity = isNaN(numericvirtualReserve) || isNaN(ambPrice) ? 0 : numericvirtualReserve * ambPrice;
-					const volumebuy = amountPaid * ambPrice
+					const volumesell = amountReceived * ambPrice
 
-					console.log("✅ Buy Volume:", volumebuy);
+					console.log("✅ Buy Volume:", volumesell);
 
 					// Update token and trades in the primary database
 					await primaryConnection.collection('tokens').updateOne(
@@ -2305,15 +2303,15 @@ const resolvers = {
 							},
 							$inc: {
 								TXNS: 1, 
-								BUYS: 1, 
-								BuyVolume: volumebuy, 
-								Volume: volumebuy, 
+								SELLS: 1, 
+								BuyVolume: volumesell, 
+								Volume: volumesell, 
 							},
 						}
 					);
 					// Fetch user's token balance
 					const tokenContract = new web3.eth.Contract(ERC20ABI, tokenAddress);
-					const userBalanceRaw = await tokenContract.methods.balanceOf(buyer).call();
+					const userBalanceRaw = await tokenContract.methods.balanceOf(seller).call();
 
 					// Convert to Ether (human-readable format)
 					const userBalance = parseFloat(web3.utils.fromWei(userBalanceRaw || '0', 'ether'));
@@ -2344,7 +2342,7 @@ const resolvers = {
 					// Update holders database
 					const holdersCollection = holdersConnection.collection(tokenAddress);
 					await holdersCollection.updateOne(
-						{ address: buyer },
+						{ address: seller },
 						{
 							$set: { balance: userBalance, percentageHold },
 						},
@@ -2356,7 +2354,7 @@ const resolvers = {
 					const transactionData = {
 						type: "Buy",
 						quantity,
-						amountPaid,
+						amountReceived,
 						tokenPrice: numericTokenPrice,
 						virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
 						tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
@@ -2364,7 +2362,7 @@ const resolvers = {
 						usdMarketCap,
 						usdPrice,
 						timestamp,
-						buyer,
+						seller,
 						transactionHash,
 						bondingCurve,
 					};
@@ -2383,8 +2381,8 @@ const resolvers = {
 					}
 					const { name, symbol, imageURI, metadataURI } = tokenDetails; // Extract name, symbol, imageURI
 
-					console.log(`📥 Updating user collection for wallet: ${buyer}`);
-					const userCollection = UsersConnection.collection(buyer);
+					console.log(`📥 Updating user collection for wallet: ${seller}`);
+					const userCollection = UsersConnection.collection(seller);
 					// Check if user already exists in their collection
 					const existingUser = await userCollection.findOne({ mint });
 
@@ -2399,7 +2397,7 @@ const resolvers = {
 									name, symbol, imageURI, metadataURI, balance : userBalance },
 							}
 						);
-						console.log(`✅ Updated balance for ${buyer}`);
+						console.log(`✅ Updated balance for ${seller}`);
 					} else {
 						console.log("🆕 User does not exist. Creating new record...");
 			
@@ -2413,7 +2411,7 @@ const resolvers = {
 							metadataURI,
 						});
 			
-						console.log(`✅ New user record created for ${buyer}`);
+						console.log(`✅ New user record created for ${seller}`);
 					}
 
 				} catch (error) {

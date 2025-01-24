@@ -97,6 +97,15 @@ const typeDefs = gql`
 		quantity: Float!
 		amountPaid: Float!
 		timestamp: String!
+		seller: String!
+		transactionHash: String!
+		bondingCurve: String!
+  }
+  type TokenSale {
+		mint: String!
+		quantity: Float!
+		amountReceived: Float!
+		timestamp: String!
 		buyer: String!
 		transactionHash: String!
 		bondingCurve: String!
@@ -163,7 +172,9 @@ const typeDefs = gql`
       website: String
     ): Token
     buyTokens(MintOrAddress: String!, amount: String!, slippageTolerance: String!): TokenBuyResponse!
+    sellTokens(MintOrAddress: String!, amount: String!, slippageTolerance: String!): TokenBuyResponse!
     confirmTokenPurchase(transactionHash: String!): TokenPurchase!
+    confirmTokenSale(transactionHash: String!): TokenSale!
     BackbuyTokens(
 			MintOrAddress: String!, 
 			amount: Float!, 
