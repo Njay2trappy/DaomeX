@@ -1542,7 +1542,7 @@ const resolvers = {
 				console.log('Token and trade details saved in MongoDB');
 
 				// Create a collection for holders in the holders database
-                await HolderModel.createCollection(tokenAddress);
+                await holdersConnection.createCollection(tokenAddress);
                 console.log(`Holders collection created for token: ${tokenAddress}`);
 		
 				// Return response
