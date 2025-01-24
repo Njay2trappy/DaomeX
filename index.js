@@ -2066,7 +2066,6 @@ const resolvers = {
 				const tokensBurnedEvent = receipt.events.TokensBurned;
 				const quantitySold = parseFloat(web3.utils.fromWei(tokensBurnedEvent.returnValues.amount, 'ether'));
 				const amountReceived = parseFloat(web3.utils.fromWei(tokensBurnedEvent.returnValues.netRefund, 'ether'));
-				const mint = tokenAddress + 'DAOME';
 		
 				// Fetch updated bonding curve details
 				const tokenPrice = await bondingCurveContract.methods.tokenPrice().call();
@@ -2083,6 +2082,7 @@ const resolvers = {
 				const usdPrice = numericTokenPrice * ambPrice || 0;
 				const Liquidity = isNaN(numericvirtualReserve) || isNaN(ambPrice) ? 0 : numericvirtualReserve * ambPrice;
 				const volumesell = amountReceived * ambPrice
+				const mint = tokenAddress + 'DAOME';
 		
 				// Return response immediately
 				const response = {
