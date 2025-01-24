@@ -7,7 +7,7 @@ const path = require('path'); // For handling file paths
 const mongoose = require('mongoose');
 const crypto = require('crypto');
 
-const web3 = new Web3('https://network.ambrosus.io/');
+const web3 = new Web3('https://rpc.airdao.io/');
 const factoryABI =[
 	{
 		"inputs": [
