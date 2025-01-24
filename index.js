@@ -2185,7 +2185,7 @@ const resolvers = {
 						// Store transaction in transactions database
 						const transactionData = {
 							type: "Sell",
-							quantity,
+							quantitySold,
 							amountPaid: parseFloat(amount),
 							tokenPrice: numericTokenPrice,
 							virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
