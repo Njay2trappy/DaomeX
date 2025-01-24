@@ -2082,7 +2082,352 @@ const resolvers = {
 			console.error('❌ Error during token approval:', error);
 			throw new Error('Token approval failed.');
 		}
-	},					
+	},
+	sellTokens: async (_, { MintOrAddress, amount, slippageTolerance }, { user }) => {
+		if (!user || !user.walletAddress) {
+			throw new Error("❌ Authentication required. Please log in.");
+		}
+	
+		try {
+			let contractAddress;
+	
+			// Check if the input is an identifier (ends with DAOME)
+			if (MintOrAddress.endsWith('DAOME')) {
+				contractAddress = MintOrAddress.replace('DAOME', '');
+				console.log(`Identifier provided, contract address derived: ${contractAddress}`);
+			} else {
+				contractAddress = MintOrAddress;
+				console.log(`Contract address provided: ${contractAddress}`);
+			}
+	
+			// Fetch token details from the factory using the contract address
+			const tokenDetails = await factoryContract.methods.getTokenDetails(contractAddress).call();
+			const bondingCurveAddress = tokenDetails[4]; // Assuming bondingCurve is at index 4
+			const tokenName = tokenDetails[0]; // Assuming token name is at index 0
+	
+			console.log(`Bonding curve address fetched: ${bondingCurveAddress}`);
+			console.log(`Token name fetched: ${tokenName}`);
+	
+			const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurveAddress);
+	
+			console.log(`Selling tokens to bonding curve: ${bondingCurveAddress}`);
+			console.log(`Amount to sell (before adjustment): ${amount}, Slippage Tolerance: ${slippageTolerance}`);
+	
+			// Convert the amount to Wei and subtract 1 Wei for rounding errors
+			const adjustedAmount = web3.utils.toBN(web3.utils.toWei(amount.toString(), 'ether')).sub(web3.utils.toBN(1));
+			console.log(`Adjusted amount to sell (in wei): ${adjustedAmount.toString()}`);
+	
+			// Fetch token address from bonding curve contract
+			const tokenAddress = await bondingCurveContract.methods.token().call();
+			const tokenContract = new web3.eth.Contract(ERC20ABI, tokenAddress);
+	
+			// Validate user balance
+			const userBalance = await tokenContract.methods.balanceOf(user.walletAddress).call();
+			console.log(`User balance: ${web3.utils.fromWei(userBalance, 'ether')} tokens`);
+	
+			if (web3.utils.toBN(userBalance).lt(adjustedAmount)) {
+				throw new Error('❌ Insufficient token balance to sell.');
+			}
+	
+			// Validate allowance
+			const allowance = await tokenContract.methods.allowance(user.walletAddress, bondingCurveAddress).call();
+			console.log(`Allowance: ${web3.utils.fromWei(allowance, 'ether')} tokens`);
+	
+			if (web3.utils.toBN(allowance).lt(adjustedAmount)) {
+				throw new Error('❌ You must approve tokens before selling.');
+			}
+	
+			// Encode sellTokens transaction
+			const tx = bondingCurveContract.methods.sellTokens(adjustedAmount.toString(), slippageTolerance);
+			const gas = await tx.estimateGas({ from: user.walletAddress });
+	
+			const encodedTx = {
+				from: user.walletAddress,
+				to: bondingCurveAddress,
+				data: tx.encodeABI(),
+				gas: gas.toString(),
+			};
+	
+			console.log(`📤 Encoded Transaction:`, encodedTx);
+	
+			return { encodedTx }; // Send transaction data to frontend for signing
+		} catch (error) {
+			console.error('❌ Error during token sale:', error);
+			throw new Error('Token sale failed.');
+		}
+	},
+	confirmTokenSale: async (_, { transactionHash }) => {
+		try {
+			console.log(`📥 Received transactionHash: ${transactionHash}`);
+	
+			if (!transactionHash) {
+				throw new Error("❌ Transaction hash is required.");
+			}
+	
+			// Step 1: Fetch the transaction receipt
+			const receipt = await web3.eth.getTransactionReceipt(transactionHash);
+			if (!receipt) {
+				throw new Error("❌ Transaction receipt not found. Ensure the transaction has been mined.");
+			}
+	
+			console.log("✅ Transaction receipt fetched:", receipt);
+			const timestamp = new Date().toISOString();
+	
+			// Step 2: Decode all logs using bondingCurveABI
+			const decodedLogs = receipt.logs.map(log => {
+				try {
+					// Find the matching event in the ABI
+					const eventABI = bondingCurveABI.find(
+						event => event.type === "event" && web3.eth.abi.encodeEventSignature(event) === log.topics[0]
+					);
+	
+					if (!eventABI) {
+						return {
+							address: log.address,
+							topic: log.topics[0],
+							raw: log, // Raw log if no ABI match
+						};
+					}
+	
+					// Decode the event
+					const decodedEvent = web3.eth.abi.decodeLog(
+						eventABI.inputs,
+						log.data,
+						log.topics.slice(1) // Skip the first topic (event signature)
+					);
+	
+					return {
+						address: log.address,
+						topic: log.topics[0],
+						event: eventABI.name,
+						args: decodedEvent,
+						raw: log, // Keep raw log as well
+					};
+				} catch (error) {
+					console.warn("⚠️ Error decoding log:", error.message);
+					return {
+						address: log.address,
+						topic: log.topics[0],
+						raw: log, // Return raw log if decoding fails
+					};
+				}
+			});
+	
+			console.log("✅ Decoded Logs:", decodedLogs);
+
+			// Extract specific TokenCreated event details
+			const TokensBurnedEvent = decodedLogs.find(log => log.event === "TokensBurned");
+			if (!TokensBurnedEvent) {
+				throw new Error("TokensPurchased event not found in transaction logs.");
+			}
+
+			const bondingCurve = TokensBurnedEvent.address;
+	
+			const { seller, amount, netRefund} = TokensBurnedEvent.args;
+
+			const quantity = amount/ 1000000000000000000;
+			const amountPaid = netRefund/ 1000000000000000000;
+
+			const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurve);
+			const tokenAddress = (await bondingCurveContract.methods.token().call()).toLowerCase();
+			if (!tokenAddress) {
+				throw new Error('Token address not found in bonding curve contract.');
+			}
+			const mint = tokenAddress + 'DAOME';
+
+			console.log(`✅ Token Created:
+			- Token Address: ${tokenAddress}
+			- Mint: ${mint}
+			- Bonding Curve Address: ${bondingCurve}
+			- Token received: ${quantity}
+			- Token paid: ${amountPaid}
+			- Age: ${timestamp}
+			- buyer: ${seller}
+			`);
+			// Prepare response to send immediately
+			const response = {
+				mint,
+				quantity,
+				amountPaid,
+				timestamp,
+				buyer,
+				transactionHash,
+				bondingCurve,
+			};
+
+			console.log('Immediate response sent:', response);
+
+			// Perform database updates asynchronously
+			(async () => {
+				try {
+					// Fetch updated bonding curve details
+					const tokenPrice = await bondingCurveContract.methods.tokenPrice().call();
+					const virtualReserve = await bondingCurveContract.methods.virtualReserve().call();
+					const tokenReserve = await bondingCurveContract.methods.tokenReserve().call();
+					const marketCap = await bondingCurveContract.methods.getMarketCap().call();
+
+					const ambPrice = await fetchAmbPrice();
+					const numericTokenPrice = parseFloat(web3.utils.fromWei(tokenPrice || '0', 'ether'));
+					const numericvirtualReserve = parseFloat(web3.utils.fromWei(virtualReserve, 'ether'));
+					const numericMarketCap = parseFloat(web3.utils.fromWei(marketCap || '0', 'ether'));
+					const usdMarketCap = isNaN(numericMarketCap) || isNaN(ambPrice) ? 0 : numericMarketCap * ambPrice;
+					const usdPrice = isNaN(numericTokenPrice) || isNaN(ambPrice) ? 0 : numericTokenPrice * ambPrice;
+					const Liquidity = isNaN(numericvirtualReserve) || isNaN(ambPrice) ? 0 : numericvirtualReserve * ambPrice;
+					const volumebuy = amountPaid * ambPrice
+
+					console.log("✅ Buy Volume:", volumebuy);
+
+					// Update token and trades in the primary database
+					await primaryConnection.collection('tokens').updateOne(
+						{ mint: mint },
+						{
+							$set: {
+								tokenPrice: numericTokenPrice,
+								virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
+								tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
+								marketCap: numericMarketCap,
+								usdMarketCap,
+								usdPrice,
+								Liquidity,
+							},
+						}
+					);
+					await primaryConnection.collection('trades').updateOne(
+						{ mint: mint },
+						{
+							$set: {
+								tokenPrice: numericTokenPrice,
+								virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
+								tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
+								marketCap: numericMarketCap,
+								usdMarketCap,
+								usdPrice,
+							},
+							$inc: {
+								TXNS: 1, 
+								BUYS: 1, 
+								BuyVolume: volumebuy, 
+								Volume: volumebuy, 
+							},
+						}
+					);
+					// Fetch user's token balance
+					const tokenContract = new web3.eth.Contract(ERC20ABI, tokenAddress);
+					const userBalanceRaw = await tokenContract.methods.balanceOf(buyer).call();
+
+					// Convert to Ether (human-readable format)
+					const userBalance = parseFloat(web3.utils.fromWei(userBalanceRaw || '0', 'ether'));
+
+					if (isNaN(userBalance)) {
+						throw new Error('Invalid user balance value. Expected a number.');
+					}
+
+					console.log(`User balance: ${userBalance} tokens`);
+
+					// Calculate PercentageHold
+					const totalSupplyRaw = await tokenContract.methods.totalSupply().call();
+					const totalSupply = parseFloat(web3.utils.fromWei(totalSupplyRaw || '0', 'ether'));
+
+					if (isNaN(totalSupply) || totalSupply <= 0) {
+						throw new Error('Invalid total supply value. Expected a positive number.');
+					}
+
+					let percentageHold = ((userBalance / totalSupply) * 100).toFixed(2);
+
+					// Round down PercentageHold to 0% if less than 1%
+					if (percentageHold < 1) {
+						percentageHold = 0;
+					}
+
+					console.log(`Percentage hold by user: ${percentageHold}%`);
+
+					// Update holders database
+					const holdersCollection = holdersConnection.collection(tokenAddress);
+					await holdersCollection.updateOne(
+						{ address: buyer },
+						{
+							$set: { balance: userBalance, percentageHold },
+						},
+						{ upsert: true }
+					);
+					console.log('Holders database updated successfully.');
+
+					// Store transaction in transactions database
+					const transactionData = {
+						type: "Buy",
+						quantity,
+						amountPaid,
+						tokenPrice: numericTokenPrice,
+						virtualReserve: parseFloat(web3.utils.fromWei(virtualReserve || '0', 'ether')),
+						tokenReserve: parseFloat(web3.utils.fromWei(tokenReserve || '0', 'ether')),
+						marketCap: numericMarketCap,
+						usdMarketCap,
+						usdPrice,
+						timestamp,
+						buyer,
+						transactionHash,
+						bondingCurve,
+					};
+
+					const transactionCollection = transactionsConnection.collection(tokenAddress);
+					await transactionCollection.insertOne(transactionData);
+					console.log(`Transaction saved in collection: ${tokenAddress}`);
+
+					// Fetch token details from the database
+					const tokenDetails = await primaryConnection.collection("tokens").findOne({
+						mint: { $regex: new RegExp(`^${mint}$`, "i") } // Case-insensitive search using the mint field directly
+					});
+
+					if (!tokenDetails) {
+						throw new Error(`❌ Token details not found for mint: ${mint}`);
+					}
+					const { name, symbol, imageURI, metadataURI } = tokenDetails; // Extract name, symbol, imageURI
+
+					console.log(`📥 Updating user collection for wallet: ${buyer}`);
+					const userCollection = UsersConnection.collection(buyer);
+					// Check if user already exists in their collection
+					const existingUser = await userCollection.findOne({ mint });
+
+					if (existingUser) {
+						console.log("🔄 User already exists. Updating balance...");
+			
+						// Update the user's balance and other details
+						await userCollection.updateOne(
+							{ mint },
+							{
+								$set: { 
+									name, symbol, imageURI, metadataURI, balance : userBalance },
+							}
+						);
+						console.log(`✅ Updated balance for ${buyer}`);
+					} else {
+						console.log("🆕 User does not exist. Creating new record...");
+			
+						// Create a new record in the user's collection
+						await userCollection.insertOne({
+							mint,
+							balance : userBalance ,
+							name,
+							symbol,
+							imageURI,
+							metadataURI,
+						});
+			
+						console.log(`✅ New user record created for ${buyer}`);
+					}
+
+				} catch (error) {
+					console.error('Error during asynchronous database updates:', error.message);
+					console.error(error.stack);
+				}
+			})();
+
+			return response;
+		} catch (error) {
+			console.error('Error during token purchase:', error);
+			throw new Error('Token purchase failed');
+		}
+	},				
   },
 };
 

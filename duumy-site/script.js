@@ -642,6 +642,102 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("✅ User logged out.");
         alert("✅ Logged out successfully.");
     }
+    async function handleSellTokens(event) {
+        event.preventDefault();
+    
+        if (!window.ethereum) {
+            alert("❌ MetaMask is not installed. Please install it first.");
+            return;
+        }
+    
+        const formData = new FormData(sellTokenForm);
+        const MintOrAddress = formData.get("MintOrAddress");
+        const amount = formData.get("amount");
+        const slippageTolerance = formData.get("slippageTolerance");
+    
+        try {
+            console.log(`📜 Preparing to sell tokens: ${MintOrAddress} with amount ${amount}`);
+    
+            // Step 1: Request encoded transaction data from the backend
+            const response = await fetch(GRAPHQL_ENDPOINT, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+                },
+                body: JSON.stringify({
+                    query: `
+                        mutation SellTokens($MintOrAddress: String!, $amount: String!, $slippageTolerance: String!) {
+                            sellTokens(MintOrAddress: $MintOrAddress, amount: $amount, slippageTolerance: $slippageTolerance) {
+                                encodedTx {
+                                    from
+                                    to
+                                    data
+                                    gas
+                                }
+                            }
+                        }
+                    `,
+                    variables: { MintOrAddress, amount, slippageTolerance },
+                }),
+            });
+    
+            const result = await response.json();
+    
+            if (result.errors) {
+                console.error("❌ Error fetching encoded transaction:", result.errors);
+                alert("❌ Token sale failed. Check console for details.");
+                return;
+            }
+    
+            const { from, to, data, gas } = result.data.sellTokens.encodedTx;
+    
+            // Step 2: Sign and send the transaction via MetaMask
+            const web3 = new Web3(window.ethereum);
+            const receipt = await web3.eth.sendTransaction({ from, to, data, gas });
+    
+            console.log("✅ Transaction Successful:", receipt);
+            alert(`✅ Transaction Successful! Hash: ${receipt.transactionHash}`);
+    
+            // Step 3: Immediately confirm the token sale in the backend
+            console.log(`📥 Confirming token sale for hash: ${receipt.transactionHash}`);
+    
+            const confirmResponse = await fetch(GRAPHQL_ENDPOINT, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+                },
+                body: JSON.stringify({
+                    query: `mutation ConfirmTokenSale($transactionHash: String!) {
+                        confirmTokenSale(transactionHash: $transactionHash) {
+                            quantitySold
+                            amountReceived
+                            timestamp
+                            seller
+                            transactionHash
+                            bondingCurve
+                        }
+                    }`,
+                    variables: { transactionHash: receipt.transactionHash },
+                }),
+            });
+    
+            const confirmResult = await confirmResponse.json();
+    
+            if (confirmResult.errors) {
+                console.error("❌ Error confirming token sale:", confirmResult.errors);
+                alert("❌ Token sale confirmation failed. Check console.");
+                return;
+            }
+    
+            console.log("✅ Token sale confirmed:", confirmResult.data.confirmTokenSale);
+            alert(`✅ Token sale confirmed! Token Address: ${confirmResult.data.confirmTokenSale.tokenAddress}`);
+        } catch (error) {
+            console.error("❌ Error during token sale:", error);
+            alert("❌ An error occurred. Check console for details.");
+        }
+    }
 
     // ✅ Check if user is already logged in
     if (localStorage.getItem("userToken")) {
