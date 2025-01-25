@@ -41,7 +41,7 @@ const factoryABI =[
 				"type": "address"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "bondingCurve",
 				"type": "address"
@@ -192,12 +192,7 @@ const factoryABI =[
 			},
 			{
 				"internalType": "string",
-				"name": "metadataURI",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "imageURI",
+				"name": "identifier",
 				"type": "string"
 			},
 			{
@@ -207,7 +202,12 @@ const factoryABI =[
 			},
 			{
 				"internalType": "string",
-				"name": "identifier",
+				"name": "metadataURI",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "imageURI",
 				"type": "string"
 			}
 		],
@@ -251,6 +251,36 @@ const factoryABI =[
 ];
 const bondingCurveABI =[
 	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_feeTo",
+				"type": "address"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "recipient",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "FeeTransferFailed",
+		"type": "event"
+	},
+	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -260,13 +290,13 @@ const bondingCurveABI =[
 				"type": "address"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
 				"name": "amount",
 				"type": "uint256"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
 				"name": "netRefund",
 				"type": "uint256"
@@ -285,13 +315,13 @@ const bondingCurveABI =[
 				"type": "address"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
 				"name": "amount",
 				"type": "uint256"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
 				"name": "totalCost",
 				"type": "uint256"
@@ -334,19 +364,6 @@ const bondingCurveABI =[
 				"internalType": "address",
 				"name": "",
 				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getMarketCap",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -510,54 +527,6 @@ const ERC20ABI = [
 		"type": "event"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "spender",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "approve",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "recipient",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "transfer",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -586,35 +555,6 @@ const ERC20ABI = [
 		"inputs": [
 			{
 				"internalType": "address",
-				"name": "sender",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "recipient",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "transferFrom",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
 				"name": "",
 				"type": "address"
 			},
@@ -633,6 +573,30 @@ const ERC20ABI = [
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "approve",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -705,9 +669,62 @@ const ERC20ABI = [
 		],
 		"stateMutability": "view",
 		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "recipient",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "transfer",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "sender",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "recipient",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "transferFrom",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
 	}
 ];
-const factoryAddress = '0x1B2E0951c9EC788a5B2305fAfD97d1d1954a7d37';
+const factoryAddress = '0xeDE32dEA9eBC7ca1CCec48298096d3e49A8fC6fE';
 const factoryContract = new web3.eth.Contract(factoryABI, factoryAddress);
 
 // Schema for storing API keys
@@ -1320,11 +1337,11 @@ const resolvers = {
 			const tokenPrice = await bondingCurveContract.methods.tokenPrice().call();
 			const virtualReserve = await bondingCurveContract.methods.virtualReserve().call();
 			const tokenReserve = await bondingCurveContract.methods.tokenReserve().call();
-			const marketCap = await bondingCurveContract.methods.getMarketCap().call();
 	
-			const numericMarketCap = parseFloat(web3.utils.fromWei(marketCap, 'ether'));
+			const numericTokenPrice = parseFloat(web3.utils.fromWei(tokenPrice, 'ether'));
 			const numericvirtualReserve = parseFloat(web3.utils.fromWei(virtualReserve, 'ether'));
 			const numericUsdprice = parseFloat(web3.utils.fromWei(tokenPrice, 'ether'));
+			const numericMarketCap = numericTokenPrice * numerictokenReserve;
 			const usdMarketCap = isNaN(numericMarketCap) || isNaN(ambPrice) ? 0 : numericMarketCap * ambPrice;
 			const usdPrice = isNaN(numericUsdprice) || isNaN(ambPrice) ? 0 : numericUsdprice * ambPrice;
 			const Liquidity = isNaN(numericvirtualReserve) || isNaN(ambPrice) ? 0 : numericvirtualReserve * ambPrice;
@@ -1378,12 +1395,12 @@ const resolvers = {
 				marketCap: parseFloat(web3.utils.fromWei(marketCap, 'ether')),
 				usdMarketCap,
 				usdPrice,
-				TXNS: 1,
-				BUYS: 1,
-				SELLS: 1,
-				Volume: 1,
-				BuyVolume: 1,
-				SellVolume: 1,
+				TXNS: 0,
+				BUYS: 0,
+				SELLS: 0,
+				Volume: 0,
+				BuyVolume: 0,
+				SellVolume: 0,
 				Age: creationTime,
 			};
 	
@@ -1451,7 +1468,7 @@ const resolvers = {
 	
 			// Fetch bonding curve address and token details
 			const tokenDetails = await factoryContract.methods.getTokenDetails(contractAddress).call();
-			const bondingCurveAddress = tokenDetails[4];
+			const bondingCurveAddress = tokenDetails[3];
 			const tokenName = tokenDetails[0];
 	
 			if (!bondingCurveAddress) {
@@ -1597,12 +1614,12 @@ const resolvers = {
 					const tokenPrice = await bondingCurveContract.methods.tokenPrice().call();
 					const virtualReserve = await bondingCurveContract.methods.virtualReserve().call();
 					const tokenReserve = await bondingCurveContract.methods.tokenReserve().call();
-					const marketCap = await bondingCurveContract.methods.getMarketCap().call();
 
 					const ambPrice = await fetchAmbPrice();
+					const numerictokenReserve = parseFloat(web3.utils.fromWei(tokenReserve, 'ether'));
 					const numericTokenPrice = parseFloat(web3.utils.fromWei(tokenPrice || '0', 'ether'));
 					const numericvirtualReserve = parseFloat(web3.utils.fromWei(virtualReserve, 'ether'));
-					const numericMarketCap = parseFloat(web3.utils.fromWei(marketCap || '0', 'ether'));
+					const numericMarketCap = numericTokenPrice * numerictokenReserve;
 					const usdMarketCap = isNaN(numericMarketCap) || isNaN(ambPrice) ? 0 : numericMarketCap * ambPrice;
 					const usdPrice = isNaN(numericTokenPrice) || isNaN(ambPrice) ? 0 : numericTokenPrice * ambPrice;
 					const Liquidity = isNaN(numericvirtualReserve) || isNaN(ambPrice) ? 0 : numericvirtualReserve * ambPrice;
@@ -2044,7 +2061,7 @@ const resolvers = {
 			const factoryContract = new web3.eth.Contract(factoryABI, factoryAddress);
 			const tokenDetails = await factoryContract.methods.getTokenDetails(contractAddress).call();
 			const tokenName = tokenDetails[0];
-			const bondingCurveAddress = tokenDetails[4];
+			const bondingCurveAddress = tokenDetails[3];
 	
 			console.log(`🔹 Token Name: ${tokenName}`);
 			console.log(`🔹 Bonding Curve Address: ${bondingCurveAddress}`);
@@ -2079,7 +2096,7 @@ const resolvers = {
 				amountApproved: parseFloat(amount),
 			};
 		} catch (error) {
-			console.error('❌ Error during token approval:', error);
+
 			throw new Error('Token approval failed.');
 		}
 	},
@@ -2100,7 +2117,7 @@ const resolvers = {
 			}
 			// Fetch token details from the factory using the contract address
 			const tokenDetails = await factoryContract.methods.getTokenDetails(contractAddress).call();
-			const bondingCurveAddress = tokenDetails[4]; // Assuming bondingCurve is at index 4
+			const bondingCurveAddress = tokenDetails[3]; // Assuming bondingCurve is at index 4
 			const tokenName = tokenDetails[0]; // Assuming token name is at index 0
 	
 			console.log(`Bonding curve address fetched: ${bondingCurveAddress}`);
@@ -2262,12 +2279,12 @@ const resolvers = {
 					const tokenPrice = await bondingCurveContract.methods.tokenPrice().call();
 					const virtualReserve = await bondingCurveContract.methods.virtualReserve().call();
 					const tokenReserve = await bondingCurveContract.methods.tokenReserve().call();
-					const marketCap = await bondingCurveContract.methods.getMarketCap().call();
 
 					const ambPrice = await fetchAmbPrice();
+					const numerictokenReserve = parseFloat(web3.utils.fromWei(tokenReserve, 'ether'));
 					const numericTokenPrice = parseFloat(web3.utils.fromWei(tokenPrice || '0', 'ether'));
 					const numericvirtualReserve = parseFloat(web3.utils.fromWei(virtualReserve, 'ether'));
-					const numericMarketCap = parseFloat(web3.utils.fromWei(marketCap || '0', 'ether'));
+					const numericMarketCap = numericTokenPrice * numerictokenReserve;
 					const usdMarketCap = isNaN(numericMarketCap) || isNaN(ambPrice) ? 0 : numericMarketCap * ambPrice;
 					const usdPrice = isNaN(numericTokenPrice) || isNaN(ambPrice) ? 0 : numericTokenPrice * ambPrice;
 					const Liquidity = isNaN(numericvirtualReserve) || isNaN(ambPrice) ? 0 : numericvirtualReserve * ambPrice;
