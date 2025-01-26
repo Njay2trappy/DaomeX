@@ -8,6 +8,9 @@ const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
 const jwt = require("jsonwebtoken");
 
+const { WebSocketServer } = require("ws");
+const { useServer } = require("graphql-ws/lib/use/ws");
+
 const typeDefs = require("./schema");
 const resolvers = require("./resolvers");
 
@@ -34,6 +37,18 @@ async function startServer() {
     // ✅ Create HTTP Server
     const httpServer = http.createServer(app);
 
+    const wsServer = new WebSocketServer({
+        server: httpServer,
+        path: "/graphql",
+    });
+    
+    const serverCleanup = useServer(
+        {
+          schema,
+        },
+        wsServer
+      );
+
     // ✅ Initialize Apollo Server
     const server = new ApolloServer({
         schema,
@@ -56,6 +71,18 @@ async function startServer() {
 
             return { user }; // ✅ No WebSockets, no pubsub
         },
+        plugins: [
+            // Proper shutdown for the WebSocket server.
+      {
+        async serverWillStart() {
+          return {
+            async drainServer() {
+              await serverCleanup.dispose();
+            },
+          };
+        },
+      },
+        ]
     });
 
     // ✅ Start Apollo Server
