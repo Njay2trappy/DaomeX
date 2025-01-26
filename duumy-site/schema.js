@@ -184,6 +184,10 @@ const typeDefs = gql`
 		): TokenPurchase!
     approveToken(MintOrAddress: String!, amount: String!): ApproveTokenResponse!
   }
+
+  type Subscription{
+    tokenAdded: Token
+  }
 `;
 
 module.exports = typeDefs;
