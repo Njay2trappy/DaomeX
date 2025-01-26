@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GraphQL Subscription Test</title>
+  <script src="https://cdn.jsdelivr.net/npm/graphql-ws@5.16.0"></script>
+</head>
+<body>
+  <h1>Token Subscription</h1>
+  <div id="result">Waiting for data...</div>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const client = graphqlWs.createClient({
+        url: 'ws://localhost:4000/graphql'
+      });
+
+      const subscriptionQuery = `
+        subscription {
+          tokenAdded {
+            mint
+            name
+            symbol
+            totalSupply
+            balanceOf
+            bondingCurve
+            creator
+            transactionHash
+          }
+        }
+      `;
+
+      (async () => {
+        try {
+          const onNext = (data) => {
+            console.log('Subscription data:', data);
+            const resultDiv = document.getElementById("result");
+            const token = data.data.tokenAdded;
+            resultDiv.innerHTML = `
+              <p>Mint: ${token.mint}</p>
+              <p>Name: ${token.name}</p>
+              <p>Symbol: ${token.symbol}</p>
+              <p>Total Supply: ${token.totalSupply}</p>
+              <p>Balance Of: ${token.balanceOf}</p>
+              <p>Bonding Curve: ${token.bondingCurve}</p>
+              <p>Creator: ${token.creator}</p>
+              <p>Transaction Hash: ${token.transactionHash}</p>
+            `;
+          };
+
+          const subscription = await client.subscribe(
+            { query: subscriptionQuery },
+            {
+              next: onNext,
+              error: (err) => console.error('Subscription error:', err),
+              complete: () => console.log('Subscription completed')
+            }
+          );
+        } catch (err) {
+          console.error('Subscription setup error:', err);
+        }
+      })();
+    });
+  </script>
+</body>
+</html>
