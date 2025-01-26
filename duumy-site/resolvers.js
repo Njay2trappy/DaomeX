@@ -2455,6 +2455,23 @@ const resolvers = {
 	Subscription: {
 		tokenAdded: {
 			subscribe: () => {
+				// Emit a test token event with only the required fields
+				//TODO: remove this part as it is used for testing
+				// test start
+				setTimeout(() => {
+					eventEmitter.emit("TOKEN_ADDED", {
+					  mint: "exampleMint",
+					  name: "Example Token",
+					  symbol: "EXT",
+					  totalSupply: 1000000,
+					  balanceOf: 50000,
+					  bondingCurve: "linear",
+					  creator: "creatorAddress",
+					  transactionHash: "exampleTransactionHash",
+					});
+				}, 1000); // Emit after 1 second for testing
+				//test end
+		  
 				return {
 					[Symbol.asyncIterator]: async function* () {
 						while (true) {
