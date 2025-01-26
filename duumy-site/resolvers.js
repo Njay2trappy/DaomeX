@@ -14,7 +14,7 @@ const { primaryConnection, UserModel, AuthModel, Token, Trade } = require("./db"
 const { transactionsConnection, TransactionModel } = require("./transactions")
 const { holdersConnection, HolderModel } = require("./holders");
 const { UsersConnection, UsersModel } = require("./users");
-const { eventEmitter } = require("./server"); // ✅ Import the global EventEmitter
+//const { eventEmitter } = require("./server"); // ✅ Import the global EventEmitter
 require("dotenv").config(); // Ensure dotenv is required at the top
 
 const SECRET_KEY = process.env.SECRET_KEY || "supersecretkey"; // Secure Secret Key
@@ -786,6 +786,11 @@ async function validateApiKey(apiKey) {
   
 	return apiKeyRecord;
 }
+
+const { EventEmitter } = require("events");
+
+// Create a new EventEmitter instance
+const eventEmitter = new EventEmitter();
 
 const resolvers = {
 	Upload: GraphQLUpload, // Define Upload scalar
