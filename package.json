@@ -18,17 +18,25 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
+    "@apollo/server": "^4.11.3",
     "apollo-server": "^3.12.0",
     "apollo-server-express": "^3.13.0",
     "axios": "^1.4.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "form-data": "^4.0.0",
+    "graphql-redis-subscriptions": "^2.7.0",
+    "graphql-subscriptions": "^3.0.0",
     "graphql-upload": "^13.0.0",
+    "graphql-ws": "^5.16.2",
+    "http": "^0.0.1-security",
+    "ioredis": "^5.4.2",
     "mongoose": "^7.5.0",
     "uuid": "^11.0.5",
-    "web3": "^1.10.0"
+    "web3": "^1.10.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.0"

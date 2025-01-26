@@ -11,10 +11,72 @@ document.addEventListener("DOMContentLoaded", () => {
     const createTokenStatus = document.getElementById("createTokenStatus");
     const buyTokenForm = document.getElementById("buyTokenForm");
     const approveTokenForm = document.getElementById("approveTokenForm");
+    const tokenList = document.getElementById("tokenList");
 
     let uploadedImageURI = "";
 
     const GRAPHQL_ENDPOINT = "http://localhost:4000/graphql"; // Adjust as needed
+
+
+    // ✅ Function to Fetch Tokens and Update UI
+    async function fetchTokens() {
+        try {
+            const response = await fetch(GRAPHQL_ENDPOINT, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    query: `
+                        query {
+                            getTokens {
+                                name
+                                symbol
+                                creator
+                                tokenPrice
+                                virtualReserve
+                                tokenReserve
+                                imageURI
+                            }
+                        }
+                    `,
+                }),
+            });
+
+            const result = await response.json();
+            if (result.errors) {
+                console.error("❌ Error fetching tokens:", result.errors);
+                return;
+            }
+
+            updateTokenList(result.data.getTokens);
+        } catch (error) {
+            console.error("❌ Error fetching tokens:", error);
+        }
+    }
+
+    // ✅ Function to Update Token List UI
+    function updateTokenList(tokens) {
+        if (!tokenList) return; // Ensure the list exists
+        tokenList.innerHTML = ""; // Clear existing items
+
+        tokens.forEach((token) => {
+            const listItem = document.createElement("li");
+            listItem.className = "token-item";
+
+            const tokenImage = document.createElement("img");
+            tokenImage.src = token.imageURI || "https://via.placeholder.com/50"; // Use placeholder if no image
+            tokenImage.alt = token.name;
+            
+            const tokenInfo = document.createElement("span");
+            tokenInfo.innerText = `${token.name} (${token.symbol})`;
+
+            listItem.appendChild(tokenImage);
+            listItem.appendChild(tokenInfo);
+            tokenList.appendChild(listItem);
+        });
+    }
+
+    // ✅ Poll for new tokens every second
+    setInterval(fetchTokens, 1000);
 
     // ✅ Ensure buttons exist before adding event listeners
     if (connectButton) {
@@ -738,6 +800,14 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("❌ An error occurred. Check console for details.");
         }
     }
+   /* function updateTokenList(token) {
+        const tokenList = document.getElementById("tokenList");
+        if (!tokenList) return; // Ensure the list exists
+    
+        const listItem = document.createElement("li");
+        listItem.innerHTML = `<strong>${token.name} (${token.symbol})</strong> - Created by ${token.creator}`;
+        tokenList.appendChild(listItem);
+    }*/
 
     // ✅ Check if user is already logged in
     if (localStorage.getItem("userToken")) {
@@ -758,6 +828,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (approveTokenForm) {
         approveTokenForm.addEventListener("submit", approveToken);
     }
+    fetchTokens(); // ✅ Fetch tokens on page load
 });
 
 

@@ -1,67 +1,74 @@
-const { ApolloServer } = require("apollo-server-express");
 const express = require("express");
-const mongoose = require("mongoose");
+const http = require("http");
+const { ApolloServer } = require("apollo-server-express");
+const { makeExecutableSchema } = require("@graphql-tools/schema");
 const { graphqlUploadExpress } = require("graphql-upload");
-const jwt = require("jsonwebtoken");
 const cors = require("cors");
-const typeDefs = require("./schema");
 const bodyParser = require("body-parser");
-const resolvers = require("./resolvers");
-require("dotenv").config(); // Ensure dotenv is required at the top
+const dotenv = require("dotenv");
+const jwt = require("jsonwebtoken");
 
+const typeDefs = require("./schema");
+const resolvers = require("./resolvers");
+
+// ✅ Load environment variables
+dotenv.config();
 
 const SECRET_KEY = process.env.SECRET_KEY || "verifeiddata23";
-const app = express();
-
-// ✅ Middleware
-app.use(cors());
-app.use(bodyParser.json());
-
-
-app.use(graphqlUploadExpress());
 
 async function startServer() {
     const app = express();
 
-    // ✅ Add middleware for file uploads
+    // ✅ Enable CORS
+    app.use(cors());
+
+    // ✅ Body Parser Middleware
+    app.use(bodyParser.json());
+
+    // ✅ File Upload Middleware
     app.use(graphqlUploadExpress());
 
-    // ✅ Apollo Server setup
+    // ✅ Create GraphQL schema
+    const schema = makeExecutableSchema({ typeDefs, resolvers });
+
+    // ✅ Create HTTP Server
+    const httpServer = http.createServer(app);
+
+    // ✅ Initialize Apollo Server
     const server = new ApolloServer({
-        typeDefs,
-        resolvers,
+        schema,
+        csrfPrevention: true, // Recommended for security
+        introspection: true, // ✅ Allows GraphiQL access
         context: ({ req }) => {
-            const authHeader = req.headers.authorization || "";
+            const authHeader = req?.headers?.authorization || "";
             const token = authHeader.replace("Bearer ", "").trim();
+            let user = null;
 
-            if (!token) {
-                return { user: null }; // No authentication token provided
+            if (token) {
+                try {
+                    // ✅ Decode JWT to extract walletAddress
+                    const decoded = jwt.verify(token, SECRET_KEY);
+                    user = { walletAddress: decoded.walletAddress };
+                } catch (error) {
+                    console.error("❌ Invalid Token:", error.message);
+                }
             }
 
-            try {
-                // ✅ Decode JWT to extract walletAddress
-                const decoded = jwt.verify(token, SECRET_KEY);
-                return { user: { walletAddress: decoded.walletAddress } };
-            } catch (error) {
-                console.error("❌ Invalid Token:", error.message);
-                return { user: null }; // Invalid token
-            }
+            return { user }; // ✅ No WebSockets, no pubsub
         },
     });
 
-    // ✅ Start the Apollo server
+    // ✅ Start Apollo Server
     await server.start();
-
-    // ✅ Apply Apollo server middleware to Express
     server.applyMiddleware({ app });
 
     const PORT = process.env.PORT || 4000;
 
-    app.listen(PORT, () => {
+    // ✅ Start HTTP Server (NO WEBSOCKETS)
+    httpServer.listen(PORT, () => {
         console.log(`🚀 Server ready at http://localhost:${PORT}${server.graphqlPath}`);
     });
 }
 
-startServer().catch((error) => {
-    console.error("❌ Error starting server:", error);
-});
+// ✅ Start Server & Handle Errors
+startServer().catch((error) => console.error("❌ Error starting server:", error));

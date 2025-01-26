@@ -897,7 +897,6 @@ async function fetchAmbPrice() {
 	  }
 	
 }
-  
 
 const typeDefs = gql`
 	type Token {
@@ -1557,6 +1556,8 @@ const resolvers = {
 		
 				await Token.create(tokenData);
 				await Trade.create(tradeData);
+				            // 🔴 Notify subscribers about the new token
+							pubsub.publish(TOKEN_ADDED, { tokenAdded: token });
 		
 				console.log('Token and trade details saved in MongoDB');
 

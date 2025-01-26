@@ -146,7 +146,7 @@ const typeDefs = gql`
     getBalance(tokenAddress: ID!, userAddress: ID!): Float
     getTransactions(MintOrAddress: String!, start: Int, limit: Int): [Transaction]!
     getHolders(mintOrAddress: String!, order: String = "desc", limit: Int = 100): [Holder]!
-    getTokens(limit: Int = 100): [Token!]!
+    getTokens(limit: Int): [Token]
   }
 
   type Mutation {
