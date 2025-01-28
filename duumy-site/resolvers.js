@@ -14,7 +14,7 @@ const { primaryConnection, UserModel, AuthModel, Token, Trade } = require("./db"
 const { transactionsConnection, TransactionModel } = require("./transactions")
 const { holdersConnection, HolderModel } = require("./holders");
 const { UsersConnection, UsersModel } = require("./users");
-const { eventEmitter } = require("./server"); // ✅ Import the global EventEmitter
+//const { eventEmitter } = require("./server"); // ✅ Import the global EventEmitter
 require("dotenv").config(); // Ensure dotenv is required at the top
 
 const SECRET_KEY = process.env.SECRET_KEY || "supersecretkey"; // Secure Secret Key
@@ -786,7 +786,10 @@ async function validateApiKey(apiKey) {
   
 	return apiKeyRecord;
 }
+const { EventEmitter } = require("events");
 
+// Create a new EventEmitter instance
+const eventEmitter = new EventEmitter();
 const resolvers = {
 	Upload: GraphQLUpload, // Define Upload scalar
 	Query: {
@@ -1012,7 +1015,44 @@ const resolvers = {
 				console.error('❌ Error fetching tokens from MongoDB:', error);
 				throw new Error('Failed to fetch tokens from the MongoDB database.');
 			}
-		},			  
+		},
+		getTokenPrice: async (_, { MintOrAddress}) => {
+			try {
+				// ✅ Validate input
+				if (!MintOrAddress) {
+					throw new Error('MintOrAddress is required');
+					}
+				let contractAddress;
+		
+				// ✅ Determine if input is a Mint or Contract Address
+				if (MintOrAddress.endsWith("DAOME")) {
+					contractAddress = MintOrAddress.replace("DAOME", "");
+					console.log(`🔍 Mint detected, derived contract address: ${contractAddress}`);
+				} else {
+					contractAddress = MintOrAddress;
+					console.log(`🔍 Contract address provided: ${contractAddress}`);
+				}
+		
+				// Fetch bonding curve address and token details
+				const tokenDetails = await factoryContract.methods.getTokenDetails(contractAddress).call();
+				const bondingCurveAddress = tokenDetails[3];
+				const tokenName = tokenDetails[0];
+		
+				if (!bondingCurveAddress) {
+					throw new Error(`Bonding curve address not found for contract: ${contractAddress}`);
+				}
+		
+				console.log(`Bonding curve address fetched: ${bondingCurveAddress}`);
+				console.log(`Token name fetched: ${tokenName}`);
+				
+				const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurveAddress);
+				const tokenPrice = await bondingCurveContract.methods.tokenPrice().call();
+				return web3.utils.fromWei(tokenPrice, 'ether'); // Convert from wei to a readable format
+			} catch (error) {
+				console.error('Error fetching token price:', error);
+				throw new Error('Failed to fetch token price');
+			}
+		},
 	},
 
 	Mutation: {
@@ -1242,11 +1282,6 @@ const resolvers = {
 		},
 		confirmTokenCreation: async (_, { transactionHash, name, symbol, description, twitter, telegram, website }) => {
 			try {
-				console.log(`📥 Received transactionHash: ${transactionHash}`);
-				if (!pubsub) {
-					console.error("❌ Redis PubSub is not available!");
-					throw new Error("pubsub is not defined in context.");
-				}
 				// Check if token with this transaction hash already exists
 				const existingToken = await Token.findOne({ transactionHash });
 				if (existingToken) {
@@ -1411,6 +1446,7 @@ const resolvers = {
 				console.log("✅ Token and trade data saved");	
 				// ✅ Emit an event when a new token is added
 				eventEmitter.emit("TOKEN_ADDED", tokenData);
+				console.log("✅ Event Emitted");	
 
 				// Create a collection for holders in the holders database
 				await holdersConnection.createCollection(token);

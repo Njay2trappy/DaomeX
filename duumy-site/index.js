@@ -1024,6 +1024,7 @@ const typeDefs = gql`
 		getFactoryTokens: [FActoryToken!]!
     	getTokens: [FActoryToken!]!
 		getHolders(mintOrAddress: String!, order: String, limit: Int): [Holder!]!
+        getTokenPrice(MintOrAddress: String!,apiKey: String!): String!
 	}
 	type ApiKeyResponse {
 		success: Boolean!
@@ -1381,6 +1382,47 @@ const resolvers = {
 			throw new Error('Failed to fetch holders.');
 		}
 	},
+    getTokenPrice: async (_, { MintOrAddress, apiKey}) => {
+        try {
+
+            // Validate the API key
+			await validateApiKey(apiKey);
+
+            // ✅ Validate input
+            if (!MintOrAddress) {
+                throw new Error('MintOrAddress is required');
+                }
+            let contractAddress;
+    
+            // ✅ Determine if input is a Mint or Contract Address
+            if (MintOrAddress.endsWith("DAOME")) {
+                contractAddress = MintOrAddress.replace("DAOME", "");
+                console.log(`🔍 Mint detected, derived contract address: ${contractAddress}`);
+            } else {
+                contractAddress = MintOrAddress;
+                console.log(`🔍 Contract address provided: ${contractAddress}`);
+            }
+    
+            // Fetch bonding curve address and token details
+            const tokenDetails = await factoryContract.methods.getTokenDetails(contractAddress).call();
+            const bondingCurveAddress = tokenDetails[3];
+            const tokenName = tokenDetails[0];
+    
+            if (!bondingCurveAddress) {
+                throw new Error(`Bonding curve address not found for contract: ${contractAddress}`);
+            }
+    
+            console.log(`Bonding curve address fetched: ${bondingCurveAddress}`);
+            console.log(`Token name fetched: ${tokenName}`);
+            
+            const bondingCurveContract = new web3.eth.Contract(bondingCurveABI, bondingCurveAddress);
+            const tokenPrice = await bondingCurveContract.methods.tokenPrice().call();
+            return web3.utils.fromWei(tokenPrice, 'ether'); // Convert from wei to a readable format
+        } catch (error) {
+            console.error('Error fetching token price:', error);
+            throw new Error('Failed to fetch token price');
+        }
+    },
   },
   	Mutation: {
 		createToken: async (_, { name, symbol, privateKey, description, twitter, telegram, website }) => {

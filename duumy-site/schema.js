@@ -147,6 +147,7 @@ const typeDefs = gql`
     getTransactions(MintOrAddress: String!, start: Int, limit: Int): [Transaction]!
     getHolders(mintOrAddress: String!, order: String = "desc", limit: Int = 100): [Holder]!
     getTokens(limit: Int): [Token]
+    getTokenPrice(MintOrAddress: String!): String!
   }
 
   type Mutation {
@@ -183,6 +184,9 @@ const typeDefs = gql`
 			apiKey: String!
 		): TokenPurchase!
     approveToken(MintOrAddress: String!, amount: String!): ApproveTokenResponse!
+  }
+  type Subscription{
+    tokenAdded: Token
   }
 `;
 
