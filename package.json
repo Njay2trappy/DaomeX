@@ -4,8 +4,8 @@
   "description": "A project using Web3, Apollo Server, Axios, and Mongoose.",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node duumy-site/server.js",
+    "dev": "nodemon duumy-site/server.js"
   },
   "keywords": [
     "web3",
